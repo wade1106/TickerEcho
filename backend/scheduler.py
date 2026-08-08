@@ -31,23 +31,17 @@ def check_alerts() -> None:
     try:
         with Session(engine) as session:
             all_alerts = session.exec(select(Alert)).all()
-            active = [
-                a for a in all_alerts
-                if (a.above_price is not None and a.above_triggered_at is None)
-                or (a.equal_price is not None and a.equal_triggered_at is None)
-                or (a.below_price is not None and a.below_triggered_at is None)
-            ]
-            if not active:
+            if not all_alerts:
                 return
 
-            tickers = list({a.ticker for a in active})
+            tickers = list({a.ticker for a in all_alerts})
             data = yf.download(tickers, period="1d", interval="5m", progress=False)
 
             subscriber_ids = [
                 s.line_user_id for s in session.exec(select(LineSubscriber)).all()
             ]
 
-            for alert in active:
+            for alert in all_alerts:
                 try:
                     close = data["Close"]
                     prices = close[alert.ticker] if alert.ticker in close.columns else close.iloc[:, 0]
@@ -55,25 +49,28 @@ def check_alerts() -> None:
                     now = datetime.utcnow()
                     changed = False
 
-                    if alert.above_price is not None and alert.above_triggered_at is None:
+                    if alert.above_price is not None:
                         if current_price >= alert.above_price:
-                            alert.above_triggered_at = now
-                            changed = True
-                            send_email(alert, "above", alert.above_price, current_price)
+                            if alert.above_triggered_at is None:
+                                alert.above_triggered_at = now
+                                changed = True
+                                send_email(alert, "above", alert.above_price, current_price)
                             send_line(alert, "above", alert.above_price, current_price, subscriber_ids)
 
-                    if alert.equal_price is not None and alert.equal_triggered_at is None:
+                    if alert.equal_price is not None:
                         if abs(current_price - alert.equal_price) / alert.equal_price <= 0.005:
-                            alert.equal_triggered_at = now
-                            changed = True
-                            send_email(alert, "equal", alert.equal_price, current_price)
+                            if alert.equal_triggered_at is None:
+                                alert.equal_triggered_at = now
+                                changed = True
+                                send_email(alert, "equal", alert.equal_price, current_price)
                             send_line(alert, "equal", alert.equal_price, current_price, subscriber_ids)
 
-                    if alert.below_price is not None and alert.below_triggered_at is None:
+                    if alert.below_price is not None:
                         if current_price <= alert.below_price:
-                            alert.below_triggered_at = now
-                            changed = True
-                            send_email(alert, "below", alert.below_price, current_price)
+                            if alert.below_triggered_at is None:
+                                alert.below_triggered_at = now
+                                changed = True
+                                send_email(alert, "below", alert.below_price, current_price)
                             send_line(alert, "below", alert.below_price, current_price, subscriber_ids)
 
                     if changed:
