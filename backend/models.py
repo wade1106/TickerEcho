@@ -17,6 +17,11 @@ class Alert(SQLModel, table=True):
     equal_triggered_at: Optional[datetime] = Field(default=None)
     below_triggered_at: Optional[datetime] = Field(default=None)
 
+    # LINE edge-trigger tracking: True = condition was met in previous poll
+    above_line_active: bool = Field(default=False)
+    equal_line_active: bool = Field(default=False)
+    below_line_active: bool = Field(default=False)
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

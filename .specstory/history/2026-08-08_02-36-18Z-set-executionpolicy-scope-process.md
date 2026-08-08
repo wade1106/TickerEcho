@@ -455,3 +455,493 @@ _**Agent (claude-sonnet-4-6 2026-08-08 02:39:19Z)**_
 - **LINE**：只要條件符合，每次 polling 都會發送，不限次數
 
 關鍵差異在於 `send_line` 被移到 `triggered_at is None` 的 if 區塊**外面**，因此不受「只觸發一次」的限制。Email 的 `send_email` 仍在 if 區塊內，行為不變。
+
+---
+
+_**User (2026-08-08 02:45:03Z)**_
+
+LINE的部分改成滿足條件後如果有回到不滿足的情況再變成滿足才要通知。不然會變成一直滿足一直再通知
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:45:10Z)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants LINE notifications to only send when the condition transitions from "not met" to "met" (rising edge trigger), not continuously while the condition is met.
+
+So the logic should be:
+- Send LINE when condition changes from false → true
+- Don't send while it stays true
+- If it goes false → true again, send again
+
+This requires tracking the previous state of each condition. I need to add fields to track whether each condition was met in the previous poll.
+
+Looking at the Alert model, I need to see what fields exist. Let me check the models file.
+
+Actually, I need to add state tracking fields to know the previous state. Options:
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:45:10Z)**_
+
+<tool-use data-tool-type="search" data-tool-name="Glob"><details>
+<summary>Tool use: **Glob**</summary>
+ pattern `backend/models.py`
+
+```text
+D:\Github\wade1106\TickerEcho\backend\models.py
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:45:12Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./\backend\models.py`
+
+```text
+     1→from datetime import datetime
+     2→from typing import Optional
+     3→from sqlmodel import Field, SQLModel
+     4→
+     5→
+     6→class Alert(SQLModel, table=True):
+     7→    id: Optional[int] = Field(default=None, primary_key=True)
+     8→    ticker: str = Field(nullable=False, index=True)  # no unique — multiple rows per stock allowed
+     9→    name: str = Field(nullable=False)
+    10→    user_email: str = Field(default="", nullable=False)
+    11→
+    12→    above_price: Optional[float] = Field(default=None)
+    13→    equal_price: Optional[float] = Field(default=None)
+    14→    below_price: Optional[float] = Field(default=None)
+    15→
+    16→    above_triggered_at: Optional[datetime] = Field(default=None)
+    17→    equal_triggered_at: Optional[datetime] = Field(default=None)
+    18→    below_triggered_at: Optional[datetime] = Field(default=None)
+    19→
+    20→    created_at: datetime = Field(default_factory=datetime.utcnow)
+    21→
+    22→
+    23→class LineSubscriber(SQLModel, table=True):
+    24→    id: Optional[int] = Field(default=None, primary_key=True)
+    25→    line_user_id: str = Field(nullable=False, unique=True)
+    26→    display_name: Optional[str] = Field(default=None)
+    27→    created_at: datetime = Field(default_factory=datetime.utcnow)
+    28→
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:45:18Z)**_
+
+<think><details><summary>Thought Process</summary>
+I need to add state tracking fields to Alert model to track if each condition was "active" (met) in the previous poll. This way:
+- If previous state was False and current state is True → send LINE (rising edge)
+- If previous state was True and current state is True → don't send (already notified)
+- If previous state was True and current state is False → update state to False
+- If previous state was False and current state is False → do nothing
+
+I'll add three boolean fields to the Alert model:
+- `above_line_active: bool` - was above condition met in last poll?
+- `equal_line_active: bool` - was equal condition met in last poll?
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:45:19Z)**_
+
+Alert model に3つの状態追跡フィールドを追加し、scheduler のロジックを更新します。
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:45:29Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file D:\Github\wade1106\TickerEcho\backend\models.py has been updated successfully.
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:45:57Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file D:\Github\wade1106\TickerEcho\backend\scheduler.py has been updated successfully.
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:46:04Z)**_
+
+修改完成。邏輯說明：
+
+**新行為（Edge Trigger）：**
+- 條件從「不滿足 → 滿足」：發 LINE（以及首次才發 Email）
+- 條件持續「滿足 → 滿足」：不發
+- 條件從「滿足 → 不滿足」：更新狀態，不發
+- 條件再次「不滿足 → 滿足」：再發一次 LINE
+
+**實作方式：**
+在 `Alert` model 新增三個 `*_line_active` 欄位記錄上一次 poll 的條件狀態。scheduler 比對當前狀態與上次狀態，只在「false → true」的 rising edge 時才發通知。
+
+> 注意：新增了 DB 欄位，若使用 `SQLModel` auto-create 則會在下次啟動時自動建立；若有 Alembic migration，需要新增一筆 migration。
+
+---
+
+_**User (2026-08-08 02:47:44Z)**_
+
+migration 應該要從docker跑吧
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:47:48Z)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking whether migration should be run from Docker. Let me check the project structure to understand how they've set up their Docker and migration setup.
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:47:48Z)**_
+
+<tool-use data-tool-type="search" data-tool-name="Glob"><details>
+<summary>Tool use: **Glob**</summary>
+ pattern `**/{docker-compose*,Dockerfile*,alembic.ini}`
+
+```text
+D:\Github\wade1106\TickerEcho\docker-compose.yml
+D:\Github\wade1106\TickerEcho\Dockerfile
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:47:51Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./\docker-compose.yml`
+
+```text
+     1→services:
+     2→  app:
+     3→    build: .
+     4→    ports:
+     5→      - "8888:8888"
+     6→    volumes:
+     7→      - ./data:/app/data
+     8→    env_file: .env
+     9→    restart: unless-stopped
+    10→
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:47:51Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./\Dockerfile`
+
+```text
+     1→# Stage 1: Build Vue frontend
+     2→FROM node:20-slim AS frontend-builder
+     3→WORKDIR /frontend
+     4→COPY frontend/package*.json ./
+     5→RUN npm ci
+     6→COPY frontend/ ./
+     7→RUN npm run build
+     8→
+     9→# Stage 2: Python backend + built frontend
+    10→FROM python:3.12-slim
+    11→WORKDIR /app
+    12→
+    13→COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+    14→
+    15→COPY backend/requirements.txt ./
+    16→RUN uv pip install --system --no-cache -r requirements.txt
+    17→
+    18→COPY backend/ ./
+    19→COPY --from=frontend-builder /frontend/dist ./static
+    20→
+    21→RUN mkdir -p /app/data
+    22→
+    23→EXPOSE 8888
+    24→CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8888"]
+    25→
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:47:54Z)**_
+
+<think><details><summary>Thought Process</summary>
+Let me check how the database is set up - whether they're using Alembic or SQLModel's auto-create.
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:47:54Z)**_
+
+<tool-use data-tool-type="search" data-tool-name="Grep"><details>
+<summary>Tool use: **Grep**</summary>
+ path `./\backend` pattern `create_all|alembic|migrate`
+
+```text
+D:\Github\wade1106\TickerEcho\backend\database.py:23:    SQLModel.metadata.create_all(engine)
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:47:56Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./\backend\database.py`
+
+```text
+     1→from pathlib import Path
+     2→
+     3→from sqlmodel import Session, SQLModel, create_engine
+     4→
+     5→import os
+     6→
+     7→# Resolve database path: prefer DATABASE_URL env var, otherwise use ./data/ relative to this file
+     8→_db_url = os.getenv("DATABASE_URL", "")
+     9→if not _db_url:
+    10→    _data_dir = Path(__file__).parent / "data"
+    11→    _data_dir.mkdir(parents=True, exist_ok=True)
+    12→    _db_url = f"sqlite:///{_data_dir / 'tickerecho.db'}"
+    13→else:
+    14→    # Ensure directory exists for any sqlite:/// path
+    15→    if _db_url.startswith("sqlite:///"):
+    16→        _db_path = Path(_db_url.replace("sqlite:///", "", 1))
+    17→        _db_path.parent.mkdir(parents=True, exist_ok=True)
+    18→
+    19→engine = create_engine(_db_url, connect_args={"check_same_thread": False})
+    20→
+    21→
+    22→def init_db() -> None:
+    23→    SQLModel.metadata.create_all(engine)
+    24→
+    25→
+    26→def get_session():
+    27→    with Session(engine) as session:
+    28→        yield session
+    29→
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:48:09Z)**_
+
+你們用的是 `SQLModel.metadata.create_all()`，**不是 Alembic**。
+
+`create_all` 只會建立不存在的 table，**不會自動新增欄位到已存在的 table**。所以新加的三個欄位不會自動出現在舊有的 DB 裡。
+
+有兩個選擇：
+
+**方案一（最簡單）：直接刪掉舊 DB，讓它重建**
+> 適合開發環境、資料不重要的情況
+
+```bash
+docker compose down
+rm ./data/tickerecho.db
+docker compose up --build
+```
+
+**方案二：手動 ALTER TABLE 加欄位**
+```bash
+docker compose exec app sqlite3 /app/data/tickerecho.db \
+  "ALTER TABLE alert ADD COLUMN above_line_active INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE alert ADD COLUMN equal_line_active INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE alert ADD COLUMN below_line_active INTEGER NOT NULL DEFAULT 0;"
+```
+然後再 `docker compose up --build` 重建 image。
+
+---
+
+如果之後會持續新增欄位，建議考慮導入 Alembic 做正式的 migration 管理。
+
+---
+
+_**User (2026-08-08 02:49:27Z)**_
+
+用方案一，刪掉舊 DB 重建，另外mail也改成一樣規則
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:49:45Z)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to:
+1. Delete the old DB and rebuild (method 1)
+2. Change email to also use the edge-trigger pattern (same as LINE)
+
+For email, the current logic is: send once when `triggered_at is None`. The user wants it to also follow the edge-trigger pattern (send when condition goes from not-met to met, and send again if it goes back to not-met and then met again).
+
+This means the `triggered_at` fields for email are no longer needed as "send only once" guards - instead we should use the same `*_line_active` edge detection we added for LINE.
+I'm realizing `triggered_at` might serve other purposes beyond just the send-once guard—it could be used in the API or for display. So I can repurpose it to track when the condition was first triggered for record-keeping, while using the `*_line_active` flags for edge detection on both email and LINE. When the condition transitions from false to true, both channels send and `triggered_at` gets set if it's the first occurrence.
+
+Updating the scheduler to apply edge-trigger logic to email as well, removing the `triggered_at` guard that was preventing multiple sends and letting both email and LINE fire on the same edge transition. I'll keep `triggered_at` as a timestamp record of the initial trigger.
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:49:46Z)**_
+
+先更新 scheduler.py 讓 email 也改成 edge-trigger：
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:49:58Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file D:\Github\wade1106\TickerEcho\backend\scheduler.py has been updated successfully.
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:50:03Z)**_
+
+程式碼更新完畢。現在執行以下指令重建：
+
+```bash
+docker compose down
+rm ./data/tickerecho.db
+docker compose up --build
+```
+
+**目前行為（email 和 LINE 相同）：**
+- 條件不滿足 → 滿足：發通知
+- 條件持續滿足：不發
+- 條件回到不滿足 → 再次滿足：再發一次
+- `triggered_at` 欄位保留，記錄該條件**第一次**觸發的時間
+
+---
+
+_**User (2026-08-08 02:50:51Z)**_
+
+我需要在本地端刪掉DB重建
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:50:56Z)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to delete the DB locally (not in Docker). Let me check where the local DB is located. From database.py, the local path is `./data/tickerecho.db` relative to the backend directory, so it would be `backend/data/tickerecho.db`.
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:50:58Z)**_
+
+根據 `database.py`，本地 DB 路徑是 `backend/data/tickerecho.db`。直接刪掉：
+
+```bash
+rm ./data/tickerecho.db
+```
+
+（在 `backend/` 目錄下執行），或絕對路徑：
+
+```bash
+rm D:/Github/wade1106/TickerEcho/backend/data/tickerecho.db
+```
+
+刪掉後重新啟動 backend，`init_db()` 會自動用新的 schema 重建 DB。
+
+---
+
+_**User (2026-08-08 02:51:57Z)**_
+
+ D:\Github\wade1106\TickerEcho>  rm D:/Github/wade1106/TickerEcho/backend/data/tickerecho.db
+Remove-Item: Cannot find path 'D:\Github\wade1106\TickerEcho\backend\data\tickerecho.db' because it does not exist.
+PS D:\Github\wade1106\TickerEcho> (Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& d:\Github\wade1106\TickerEcho\backend\.venv\Scripts\Activate.ps1)
+(backend) PS D:\Github\wade1106\TickerEcho> 
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:52:01Z)**_
+
+<think><details><summary>Thought Process</summary>
+The user is in a PowerShell environment and the DB file doesn't exist yet. They've activated the virtual environment. Now they probably need to start the backend to create the DB with the new schema. Let me suggest they run the backend.
+
+Actually, the DB doesn't exist yet, so it will be created fresh when the backend starts. They just need to start the backend now.
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:52:01Z)**_
+
+DB 本來就不存在，直接啟動 backend 就會用新 schema 建立：
+
+```powershell
+cd backend
+uvicorn main:app --host 0.0.0.0 --port 8888
+```
+
+---
+
+_**User (2026-08-08 02:53:02Z)**_
+
+DB不存在，那我在本地端測試都建到哪裡去了
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:53:06Z)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking where the local DB is being created during testing. Let me check the database.py again - it uses `DATABASE_URL` env var or defaults to `./data/tickerecho.db` relative to the backend directory. Let me also check if there's a .env file that might override the path.
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:53:06Z)**_
+
+<tool-use data-tool-type="search" data-tool-name="Glob"><details>
+<summary>Tool use: **Glob**</summary>
+ path `./` pattern `**/*.db`
+
+```text
+No files found
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:53:06Z)**_
+
+<tool-use data-tool-type="search" data-tool-name="Glob"><details>
+<summary>Tool use: **Glob**</summary>
+ path `./` pattern `.env`
+
+```text
+D:\Github\wade1106\TickerEcho\.env
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:53:09Z)**_
+
+<tool-use data-tool-type="search" data-tool-name="Grep"><details>
+<summary>Tool use: **Grep**</summary>
+ path `./\.env` pattern `DATABASE_URL`
+
+```text
+21:DATABASE_URL=sqlite:////app/data/tickerecho.db
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:53:14Z)**_
+
+`.env` 裡設定了 `DATABASE_URL=sqlite:////app/data/tickerecho.db`，這是 Docker 容器內的絕對路徑。
+
+本地端啟動時如果有載入這個 `.env`，DB 會被建在 `D:\app\data\tickerecho.db`（Windows 上對應 `/app/data/`）。
+
+確認一下：
+
+```powershell
+ls D:\app\data\
+```
+
+如果有的話，刪掉那個檔案再重啟 backend 就好。或者本地測試時不要載入 `.env`，這樣會 fallback 到 `backend/data/tickerecho.db`。
+
+---
+
+_**User (2026-08-08 02:53:57Z)**_
+
+(backend) PS D:\Github\wade1106\TickerEcho> ls D:\app\data\
+
+    Directory: D:\app\data
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---          2026/8/8 上午 07:38          20480 tickerecho.db
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 02:54:00Z)**_
+
+找到了，刪掉後重啟：
+
+```powershell
+rm D:\app\data\tickerecho.db
+cd backend
+uvicorn main:app --host 0.0.0.0 --port 8888
+```

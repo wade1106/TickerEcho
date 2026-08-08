@@ -50,28 +50,37 @@ def check_alerts() -> None:
                     changed = False
 
                     if alert.above_price is not None:
-                        if current_price >= alert.above_price:
+                        met = current_price >= alert.above_price
+                        if met and not alert.above_line_active:
                             if alert.above_triggered_at is None:
                                 alert.above_triggered_at = now
-                                changed = True
-                                send_email(alert, "above", alert.above_price, current_price)
+                            send_email(alert, "above", alert.above_price, current_price)
                             send_line(alert, "above", alert.above_price, current_price, subscriber_ids)
+                        if met != alert.above_line_active:
+                            alert.above_line_active = met
+                            changed = True
 
                     if alert.equal_price is not None:
-                        if abs(current_price - alert.equal_price) / alert.equal_price <= 0.005:
+                        met = abs(current_price - alert.equal_price) / alert.equal_price <= 0.005
+                        if met and not alert.equal_line_active:
                             if alert.equal_triggered_at is None:
                                 alert.equal_triggered_at = now
-                                changed = True
-                                send_email(alert, "equal", alert.equal_price, current_price)
+                            send_email(alert, "equal", alert.equal_price, current_price)
                             send_line(alert, "equal", alert.equal_price, current_price, subscriber_ids)
+                        if met != alert.equal_line_active:
+                            alert.equal_line_active = met
+                            changed = True
 
                     if alert.below_price is not None:
-                        if current_price <= alert.below_price:
+                        met = current_price <= alert.below_price
+                        if met and not alert.below_line_active:
                             if alert.below_triggered_at is None:
                                 alert.below_triggered_at = now
-                                changed = True
-                                send_email(alert, "below", alert.below_price, current_price)
+                            send_email(alert, "below", alert.below_price, current_price)
                             send_line(alert, "below", alert.below_price, current_price, subscriber_ids)
+                        if met != alert.below_line_active:
+                            alert.below_line_active = met
+                            changed = True
 
                     if changed:
                         session.add(alert)
