@@ -10,21 +10,69 @@
     <main>
       <div class="chart-card">
         <div class="chart-toolbar">
-          <div class="period-btns">
+          <div class="chart-type-tabs">
+            <button
+              :class="{ active: chartType === 'candle' }"
+              @click="switchChartType('candle')"
+            >K線圖</button>
+            <button
+              :class="{ active: chartType === 'profile' }"
+              @click="switchChartType('profile')"
+            >壓力支撐</button>
+          </div>
+          <div class="divider" />
+          <div class="period-btns" v-if="chartType === 'candle'">
             <button
               v-for="p in periods"
               :key="p.value"
               :class="{ active: period === p.value }"
               @click="changePeriod(p.value)"
-            >
-              {{ p.label }}
-            </button>
+            >{{ p.label }}</button>
+          </div>
+          <div class="period-btns" v-else>
+            <button
+              v-for="p in profilePeriods"
+              :key="p.value"
+              :class="{ active: profilePeriod === p.value }"
+              @click="changeProfilePeriod(p.value)"
+            >{{ p.label }}</button>
           </div>
         </div>
-        <div class="chart-wrap">
+
+        <!-- K線圖 -->
+        <div class="chart-wrap" v-show="chartType === 'candle'">
           <div ref="chartContainer" class="chart-container" />
           <div v-if="loading" class="chart-overlay">載入中...</div>
           <div v-else-if="error" class="chart-overlay error">{{ error }}</div>
+        </div>
+
+        <!-- 壓力支撐圖 -->
+        <div class="profile-wrap" v-show="chartType === 'profile'">
+          <div v-if="profileLoading" class="profile-status">載入中...</div>
+          <div v-else-if="profileError" class="profile-status error">{{ profileError }}</div>
+          <div v-else-if="profileData.length === 0" class="profile-status">查無資料</div>
+          <div v-else class="profile-rows">
+            <div
+              v-for="row in profileData"
+              :key="row.label"
+              class="profile-row"
+              :class="row.type"
+            >
+              <span class="price-label">{{ row.label }}</span>
+              <div class="bar-wrap">
+                <div
+                  class="bar"
+                  :style="{ width: (row.volume / profileMaxVolume * 100) + '%' }"
+                />
+              </div>
+              <span class="vol-label">{{ formatVol(row.volume) }}</span>
+            </div>
+          </div>
+          <div class="profile-legend">
+            <span class="legend-item 壓力"><span class="dot" />壓力</span>
+            <span class="legend-item 價"><span class="dot" />價</span>
+            <span class="legend-item 支撐"><span class="dot" />支撐</span>
+          </div>
         </div>
       </div>
     </main>
@@ -32,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { createChart, CandlestickSeries, HistogramSeries, type IChartApi } from 'lightweight-charts'
 import client from '@/api/client'
@@ -40,8 +88,10 @@ import client from '@/api/client'
 const route = useRoute()
 const ticker = route.params.ticker as string
 const chartContainer = ref<HTMLElement | null>(null)
-const period = ref('3mo')
 const stockName = ref('')
+
+// --- K線圖 ---
+const period = ref('3mo')
 const loading = ref(false)
 const error = ref('')
 const periods = [
@@ -51,6 +101,28 @@ const periods = [
   { label: '1Y', value: '1y' },
 ]
 
+// --- 壓力支撐 ---
+const chartType = ref<'candle' | 'profile'>('candle')
+const profilePeriod = ref('3mo')
+const profileLoading = ref(false)
+const profileError = ref('')
+const profileData = ref<{ label: string; price_low: number; price_high: number; volume: number; type: string }[]>([])
+const profilePeriods = [
+  { label: '近季', value: '3mo' },
+  { label: '近月', value: '1mo' },
+  { label: '近周', value: '5d' },
+]
+const profileMaxVolume = computed(() =>
+  profileData.value.reduce((max, r) => Math.max(max, r.volume), 1),
+)
+
+function formatVol(v: number): string {
+  if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M'
+  if (v >= 1_000) return (v / 1_000).toFixed(0) + 'K'
+  return String(v)
+}
+
+// --- Lightweight chart ---
 let chart: IChartApi | null = null
 let candleSeries: any = null
 let volumeSeries: any = null
@@ -83,9 +155,24 @@ async function loadChart() {
   }
 }
 
+async function loadProfile() {
+  profileLoading.value = true
+  profileError.value = ''
+  try {
+    const res = await client.get(`/stocks/${ticker}/volume-profile`, {
+      params: { period: profilePeriod.value },
+    })
+    profileData.value = res.data
+  } catch (e: any) {
+    profileError.value = e?.response?.data?.detail ?? '載入失敗，請稍後再試'
+  } finally {
+    profileLoading.value = false
+  }
+}
+
 async function loadStockName() {
   try {
-    const res = await client.get('/stocks/search', { params: { q: ticker.replace('.TW', '') } })
+    const res = await client.get('/stocks/search', { params: { q: ticker.replace('.TW', '').replace('.TWO', '') } })
     const match = res.data.find((s: any) => s.ticker === ticker)
     if (match) stockName.value = match.name
   } catch {}
@@ -95,7 +182,21 @@ function changePeriod(p: string) {
   period.value = p
 }
 
+function changeProfilePeriod(p: string) {
+  profilePeriod.value = p
+}
+
+function switchChartType(type: 'candle' | 'profile') {
+  chartType.value = type
+  if (type === 'profile' && profileData.value.length === 0) {
+    loadProfile()
+  }
+}
+
 watch(period, loadChart)
+watch(profilePeriod, () => {
+  if (chartType.value === 'profile') loadProfile()
+})
 
 onMounted(async () => {
   if (!chartContainer.value) return
@@ -209,8 +310,52 @@ main {
 .chart-toolbar {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #111f35;
+}
+
+.chart-type-tabs {
+  display: flex;
+  gap: 0;
+}
+
+.chart-type-tabs button {
+  padding: 0.3rem 0.9rem;
+  border: 1px solid #1e3a5f;
+  background: transparent;
+  color: #4a7aad;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.chart-type-tabs button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.chart-type-tabs button:last-child {
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+}
+
+.chart-type-tabs button:hover {
+  border-color: #00c8ff;
+  color: #00c8ff;
+}
+
+.chart-type-tabs button.active {
+  background: rgba(0, 200, 255, 0.12);
+  border-color: #00c8ff;
+  color: #00c8ff;
+}
+
+.divider {
+  width: 1px;
+  height: 1.4rem;
+  background: #1e3a5f;
 }
 
 .period-btns {
@@ -268,4 +413,102 @@ main {
 }
 
 .chart-overlay.error { color: #ff4d6d; }
+
+/* 壓力支撐 */
+.profile-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+
+.profile-status {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  color: #4a7aad;
+  padding: 2rem;
+}
+
+.profile-status.error { color: #ff4d6d; }
+
+.profile-rows {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 22px;
+}
+
+.price-label {
+  width: 130px;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: #7a9bbf;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-wrap {
+  flex: 1;
+  background: #111f35;
+  border-radius: 2px;
+  height: 16px;
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.profile-row.壓力 .bar { background: #ef5350; }
+.profile-row.支撐 .bar { background: #1565c0; }
+.profile-row.價 .bar   { background: #f9a825; }
+
+.vol-label {
+  width: 56px;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: #7a9bbf;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-legend {
+  display: flex;
+  gap: 1.25rem;
+  padding: 0.6rem 1rem;
+  border-top: 1px solid #111f35;
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #7a9bbf;
+}
+
+.legend-item .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.legend-item.壓力 .dot { background: #ef5350; }
+.legend-item.價 .dot   { background: #f9a825; }
+.legend-item.支撐 .dot { background: #1565c0; }
 </style>
