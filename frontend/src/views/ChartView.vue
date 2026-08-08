@@ -75,6 +75,7 @@ async function loadChart() {
         })),
       )
     }
+    chart?.timeScale().fitContent()
   } catch (e: any) {
     error.value = e?.response?.data?.detail ?? '載入失敗，請稍後再試'
   } finally {

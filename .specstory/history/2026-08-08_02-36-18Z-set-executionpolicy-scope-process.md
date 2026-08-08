@@ -945,3 +945,412 @@ rm D:\app\data\tickerecho.db
 cd backend
 uvicorn main:app --host 0.0.0.0 --port 8888
 ```
+
+---
+
+_**User (2026-08-08 02:59:57Z)**_
+
+給我重啟docker的指令，重啟會重建DB嗎
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:00:03Z)**_
+
+```bash
+docker compose down
+docker compose up --build
+```
+
+會重建 DB。原因：
+- `--build` 重新建立 image（含新的程式碼）
+- container 啟動時執行 `init_db()`，DB 掛載在 `./data/` volume
+- 你剛才刪的是本地 `D:\app\data\`，Docker volume 是 `./data/`（即 `D:\Github\wade1106\TickerEcho\data\`）
+
+確認一下 Docker 的 DB 是否也需要刪：
+
+```powershell
+ls D:\Github\wade1106\TickerEcho\data\
+```
+
+如果有 `tickerecho.db` 也一起刪掉，`init_db()` 才會用新 schema 重建。
+
+---
+
+_**User (2026-08-08 03:01:50Z)**_
+
+C:\GitHub\TickerEcho>ls D:\Github\wade1106\TickerEcho\data\
+'ls' 不是內部或外部命令、可執行的程式或批次檔。C:\GitHub\TickerEcho>ls D:\Github\wade1106\TickerEcho\data\
+'ls' 不是內部或外部命令、可執行的程式或批次檔。
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:01:51Z)**_
+
+用 `dir` 或 PowerShell：
+
+```powershell
+dir D:\Github\wade1106\TickerEcho\data\
+```
+
+---
+
+_**User (2026-08-08 03:14:41Z)**_
+
+這個圖只有選一年的時候圖中才不會有空著的部分，有辦法調整嗎
+
+_**User (2026-08-08 03:14:41Z)**_
+
+[Image: source: c:\Users\WadeChung\Desktop\Snipaste_2026-08-08_11-11-40.jpg]
+
+[Image: source: c:\Users\WadeChung\Desktop\Snipaste_2026-08-08_11-11-40.jpg]
+
+---
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:14:45Z)**_
+
+<think><details><summary>Thought Process</summary>
+The user is showing a chart where when selecting 6M (6 months), there's an empty area on the left side of the chart. This is because yfinance returns data starting from when the stock had data, and the chart's x-axis is set to the full 6-month range, so there's empty space where there's no data.
+
+Let me find the chart-related frontend code.
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:14:46Z)**_
+
+這是因為 x 軸的範圍固定從 6 個月前開始，但資料實際上比較少。讓我找圖表的程式碼。
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:14:47Z)**_
+
+<tool-use data-tool-type="search" data-tool-name="Glob"><details>
+<summary>Tool use: **Glob**</summary>
+ pattern `frontend/src/**/*.{vue,js,ts}`
+
+```text
+D:\Github\wade1106\TickerEcho\frontend\src\stores\counter.ts
+D:\Github\wade1106\TickerEcho\frontend\src\main.ts
+D:\Github\wade1106\TickerEcho\frontend\src\views\AboutView.vue
+D:\Github\wade1106\TickerEcho\frontend\src\components\HelloWorld.vue
+D:\Github\wade1106\TickerEcho\frontend\src\views\HomeView.vue
+D:\Github\wade1106\TickerEcho\frontend\src\components\icons\IconCommunity.vue
+D:\Github\wade1106\TickerEcho\frontend\src\components\icons\IconDocumentation.vue
+D:\Github\wade1106\TickerEcho\frontend\src\components\icons\IconEcosystem.vue
+D:\Github\wade1106\TickerEcho\frontend\src\components\icons\IconSupport.vue
+D:\Github\wade1106\TickerEcho\frontend\src\components\icons\IconTooling.vue
+D:\Github\wade1106\TickerEcho\frontend\src\components\TheWelcome.vue
+D:\Github\wade1106\TickerEcho\frontend\src\components\WelcomeItem.vue
+D:\Github\wade1106\TickerEcho\frontend\src\api\client.ts
+D:\Github\wade1106\TickerEcho\frontend\src\stores\auth.ts
+D:\Github\wade1106\TickerEcho\frontend\src\router\index.ts
+D:\Github\wade1106\TickerEcho\frontend\src\App.vue
+D:\Github\wade1106\TickerEcho\frontend\src\views\ChartView.vue
+D:\Github\wade1106\TickerEcho\frontend\src\components\AddAlertForm.vue
+D:\Github\wade1106\TickerEcho\frontend\src\views\DashboardView.vue
+D:\Github\wade1106\TickerEcho\frontend\src\views\LoginView.vue
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:14:50Z)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./\frontend\src\views\ChartView.vue`
+
+```text
+     1→<template>
+     2→  <div class="chart-page">
+     3→    <header>
+     4→      <router-link to="/" class="back">← 返回</router-link>
+     5→      <div class="title-block">
+     6→        <span class="ticker-label">{{ ticker }}</span>
+     7→        <span class="stock-name-label" v-if="stockName">{{ stockName }}</span>
+     8→      </div>
+     9→    </header>
+    10→    <main>
+    11→      <div class="chart-card">
+    12→        <div class="chart-toolbar">
+    13→          <div class="period-btns">
+    14→            <button
+    15→              v-for="p in periods"
+    16→              :key="p.value"
+    17→              :class="{ active: period === p.value }"
+    18→              @click="changePeriod(p.value)"
+    19→            >
+    20→              {{ p.label }}
+    21→            </button>
+    22→          </div>
+    23→        </div>
+    24→        <div class="chart-wrap">
+    25→          <div ref="chartContainer" class="chart-container" />
+    26→          <div v-if="loading" class="chart-overlay">載入中...</div>
+    27→          <div v-else-if="error" class="chart-overlay error">{{ error }}</div>
+    28→        </div>
+    29→      </div>
+    30→    </main>
+    31→  </div>
+    32→</template>
+    33→
+    34→<script setup lang="ts">
+    35→import { ref, onMounted, onUnmounted, watch } from 'vue'
+    36→import { useRoute } from 'vue-router'
+    37→import { createChart, CandlestickSeries, HistogramSeries, type IChartApi } from 'lightweight-charts'
+    38→import client from '@/api/client'
+    39→
+    40→const route = useRoute()
+    41→const ticker = route.params.ticker as string
+    42→const chartContainer = ref<HTMLElement | null>(null)
+    43→const period = ref('3mo')
+    44→const stockName = ref('')
+    45→const loading = ref(false)
+    46→const error = ref('')
+    47→const periods = [
+    48→  { label: '1M', value: '1mo' },
+    49→  { label: '3M', value: '3mo' },
+    50→  { label: '6M', value: '6mo' },
+    51→  { label: '1Y', value: '1y' },
+    52→]
+    53→
+    54→let chart: IChartApi | null = null
+    55→let candleSeries: any = null
+    56→let volumeSeries: any = null
+    57→
+    58→async function loadChart() {
+    59→  loading.value = true
+    60→  error.value = ''
+    61→  try {
+    62→    const res = await client.get(`/stocks/${ticker}/chart`, { params: { period: period.value } })
+    63→    const data = res.data
+    64→    if (!data || data.length === 0) {
+    65→      error.value = '查無資料'
+    66→      return
+    67→    }
+    68→    if (candleSeries) candleSeries.setData(data)
+    69→    if (volumeSeries) {
+    70→      volumeSeries.setData(
+    71→        data.map((d: any) => ({
+    72→          time: d.time,
+    73→          value: d.volume,
+    74→          color: d.close >= d.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)',
+    75→        })),
+    76→      )
+    77→    }
+    78→  } catch (e: any) {
+    79→    error.value = e?.response?.data?.detail ?? '載入失敗，請稍後再試'
+    80→  } finally {
+    81→    loading.value = false
+    82→  }
+    83→}
+    84→
+    85→async function loadStockName() {
+    86→  try {
+    87→    const res = await client.get('/stocks/search', { params: { q: ticker.replace('.TW', '') } })
+    88→    const match = res.data.find((s: any) => s.ticker === ticker)
+    89→    if (match) stockName.value = match.name
+    90→  } catch {}
+    91→}
+    92→
+    93→function changePeriod(p: string) {
+    94→  period.value = p
+    95→}
+    96→
+    97→watch(period, loadChart)
+    98→
+    99→onMounted(async () => {
+   100→  if (!chartContainer.value) return
+   101→  loadStockName()
+   102→
+   103→  chart = createChart(chartContainer.value, {
+   104→    autoSize: true,
+   105→    height: 420,
+   106→    layout: {
+   107→      background: { color: '#0d1829' },
+   108→      textColor: '#4a7aad',
+   109→    },
+   110→    grid: {
+   111→      vertLines: { color: '#111f35' },
+   112→      horzLines: { color: '#111f35' },
+   113→    },
+   114→    crosshair: {
+   115→      vertLine: { color: '#1e3a5f', labelBackgroundColor: '#1e3a5f' },
+   116→      horzLine: { color: '#1e3a5f', labelBackgroundColor: '#1e3a5f' },
+   117→    },
+   118→    timeScale: {
+   119→      borderColor: '#1e3a5f',
+   120→      timeVisible: true,
+   121→    },
+   122→    rightPriceScale: {
+   123→      borderColor: '#1e3a5f',
+   124→    },
+   125→  })
+   126→
+   127→  candleSeries = chart.addSeries(CandlestickSeries, {
+   128→    upColor: '#26a69a',
+   129→    downColor: '#ef5350',
+   130→    borderVisible: false,
+   131→    wickUpColor: '#26a69a',
+   132→    wickDownColor: '#ef5350',
+   133→  })
+   134→
+   135→  volumeSeries = chart.addSeries(HistogramSeries, {
+   136→    priceFormat: { type: 'volume' },
+   137→    priceScaleId: 'volume',
+   138→  })
+   139→  chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
+   140→
+   141→  await loadChart()
+   142→})
+   143→
+   144→onUnmounted(() => {
+   145→  chart?.remove()
+   146→})
+   147→</script>
+   148→
+   149→<style scoped>
+   150→.chart-page {
+   151→  min-height: 100vh;
+   152→  background: #080c14;
+   153→}
+   154→
+   155→header {
+   156→  background: #0d1829;
+   157→  border-bottom: 1px solid #1e3a5f;
+   158→  padding: 0.75rem 2rem;
+   159→  display: flex;
+   160→  align-items: center;
+   161→  gap: 1.25rem;
+   162→  position: sticky;
+   163→  top: 0;
+   164→  z-index: 10;
+   165→}
+   166→
+   167→.back {
+   168→  color: #4a7aad;
+   169→  text-decoration: none;
+   170→  font-size: 0.85rem;
+   171→  transition: color 0.2s;
+   172→  white-space: nowrap;
+   173→}
+   174→
+   175→.back:hover { color: #00c8ff; }
+   176→
+   177→.title-block {
+   178→  display: flex;
+   179→  align-items: baseline;
+   180→  gap: 0.75rem;
+   181→}
+   182→
+   183→.ticker-label {
+   184→  font-size: 1rem;
+   185→  font-weight: 700;
+   186→  letter-spacing: 1px;
+   187→  color: #00c8ff;
+   188→}
+   189→
+   190→.stock-name-label {
+   191→  font-size: 0.85rem;
+   192→  color: #4a7aad;
+   193→}
+   194→
+   195→main {
+   196→  max-width: 1600px;
+   197→  margin: 0 auto;
+   198→  padding: 1.5rem;
+   199→}
+   200→
+   201→.chart-card {
+   202→  background: #0d1829;
+   203→  border: 1px solid #1e3a5f;
+   204→  border-radius: 10px;
+   205→  overflow: hidden;
+   206→}
+   207→
+   208→.chart-toolbar {
+   209→  display: flex;
+   210→  align-items: center;
+   211→  padding: 0.75rem 1rem;
+   212→  border-bottom: 1px solid #111f35;
+   213→}
+   214→
+   215→.period-btns {
+   216→  display: flex;
+   217→  gap: 0.35rem;
+   218→}
+   219→
+   220→.period-btns button {
+   221→  padding: 0.3rem 0.75rem;
+   222→  border: 1px solid #1e3a5f;
+   223→  background: transparent;
+   224→  color: #4a7aad;
+   225→  border-radius: 4px;
+   226→  cursor: pointer;
+   227→  font-size: 0.8rem;
+   228→  font-weight: 600;
+   229→  letter-spacing: 0.5px;
+   230→  transition: border-color 0.2s, color 0.2s, background 0.2s;
+   231→}
+   232→
+   233→.period-btns button:hover {
+   234→  border-color: #00c8ff;
+   235→  color: #00c8ff;
+   236→}
+   237→
+   238→.period-btns button.active {
+   239→  background: rgba(0, 200, 255, 0.12);
+   240→  border-color: #00c8ff;
+   241→  color: #00c8ff;
+   242→}
+   243→
+   244→.chart-wrap {
+   245→  position: relative;
+   246→}
+   247→
+   248→.chart-container {
+   249→  width: 100%;
+   250→}
+   251→
+   252→/* 隱藏 Lightweight Charts 內建的 TradingView 品牌標誌 */
+   253→.chart-container :deep(a) {
+   254→  display: none !important;
+   255→}
+   256→
+   257→.chart-overlay {
+   258→  position: absolute;
+   259→  inset: 0;
+   260→  display: flex;
+   261→  align-items: center;
+   262→  justify-content: center;
+   263→  font-size: 0.875rem;
+   264→  color: #4a7aad;
+   265→  background: rgba(13, 24, 41, 0.7);
+   266→  pointer-events: none;
+   267→}
+   268→
+   269→.chart-overlay.error { color: #ff4d6d; }
+   270→</style>
+   271→
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:14:58Z)**_
+
+<think><details><summary>Thought Process</summary>
+The issue is that after loading data, the chart's x-axis (timeScale) is not being fit to the actual data range. When 1Y is selected, there's enough data to fill the chart. But for 6M, 3M, 1M, the data might start from a certain date but the x-axis might be showing a wider range.
+
+Actually, looking at the code, I don't see any explicit x-axis range setting. The issue is likely that lightweight-charts is keeping the previous time scale when switching periods, or the time scale is not being adjusted to fit the data.
+</details></think>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:14:58Z)**_
+
+問題是切換期間後沒有呼叫 `fitContent()`，導致 x 軸範圍沒有自動對齊實際資料。在 `loadChart` 裡資料載入後加一行：
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:15:18Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```text
+The file D:\Github\wade1106\TickerEcho\frontend\src\views\ChartView.vue has been updated successfully.
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-6 2026-08-08 03:15:21Z)**_
+
+修改完成。`fitContent()` 會在每次資料載入後自動調整 x 軸範圍貼齊實際資料，不會再有左側空白區域。
