@@ -49,7 +49,8 @@ def check_alerts() -> None:
 
             for alert in active:
                 try:
-                    prices = data["Close"] if len(tickers) == 1 else data["Close"][alert.ticker]
+                    close = data["Close"]
+                    prices = close[alert.ticker] if alert.ticker in close.columns else close.iloc[:, 0]
                     current_price = float(prices.dropna().iloc[-1])
                     now = datetime.utcnow()
                     changed = False
