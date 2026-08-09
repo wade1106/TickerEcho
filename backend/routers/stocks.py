@@ -64,10 +64,22 @@ def get_price(ticker: str, _: str = Depends(get_current_user)):
         raise HTTPException(status_code=502, detail="Failed to fetch stock price")
 
 
+def _translate_summary(text: str) -> str:
+    if not text:
+        return text
+    try:
+        from deep_translator import GoogleTranslator
+        return GoogleTranslator(source="en", target="zh-TW").translate(text)
+    except Exception as e:
+        logger.warning(f"Translation failed, returning original: {e}")
+        return text
+
+
 @router.get("/{ticker}/info")
 def get_info(ticker: str, _: str = Depends(get_current_user)):
     try:
         info = yf.Ticker(ticker).info
+        summary_en = info.get("longBusinessSummary", "")
         return {
             "ticker": ticker,
             "name": info.get("longName") or info.get("shortName", ""),
@@ -78,7 +90,7 @@ def get_info(ticker: str, _: str = Depends(get_current_user)):
             "employees": info.get("fullTimeEmployees"),
             "market_cap": info.get("marketCap"),
             "currency": info.get("currency", ""),
-            "summary": info.get("longBusinessSummary", ""),
+            "summary": _translate_summary(summary_en),
         }
     except Exception as e:
         logger.error(f"Failed to fetch info for {ticker}: {e}")

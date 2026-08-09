@@ -230,6 +230,12 @@ onMounted(async () => {
   if (!chartContainer.value) return
   loadStockName()
 
+  // 支援 ?tab=profile 直接切換到分價圖
+  if (route.query.tab === 'profile') {
+    chartType.value = 'profile'
+    loadProfile()
+  }
+
   chart = createChart(chartContainer.value, {
     height: chartHeight(),
     layout: {

@@ -5,6 +5,9 @@
       <div class="title-block">
         <span class="page-title">股票查詢</span>
       </div>
+      <div class="header-nav">
+        <router-link to="/calculator" class="nav-link">股市計算機</router-link>
+      </div>
     </header>
 
     <main>
@@ -96,6 +99,7 @@
 
             <div class="action-row">
               <router-link :to="`/chart/${stockInfo.ticker}`" class="chart-btn">查看K線圖 →</router-link>
+              <router-link :to="`/chart/${stockInfo.ticker}?tab=profile`" class="chart-btn">查看分價圖 →</router-link>
             </div>
           </div>
 
@@ -220,6 +224,24 @@ header {
 }
 .back:hover { color: #00c8ff; }
 
+.header-nav {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  background: transparent;
+  border: 1px solid #1e3a5f;
+  color: #4a7aad;
+  padding: 0.35rem 0.9rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: border-color 0.2s, color 0.2s;
+}
+.nav-link:hover { border-color: #00c8ff; color: #00c8ff; }
+
 .page-title {
   font-size: 1rem;
   font-weight: 700;
@@ -237,7 +259,7 @@ main {
 .search-bar-wrap {
   position: relative;
   max-width: 560px;
-  margin: 0 auto 2rem;
+  margin: 0 0 2rem;
 }
 
 .search-bar {
@@ -397,6 +419,9 @@ main {
 .action-row {
   border-top: 1px solid #111f35;
   padding-top: 1rem;
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .chart-btn {
@@ -449,8 +474,23 @@ main {
 
 @media (max-width: 640px) {
   header { padding: 0.6rem 0.75rem; }
+  .header-nav { display: none; }
   main { padding: 1rem 0.75rem; }
-  .price { font-size: 1.25rem; }
+
+  .search-bar-wrap { max-width: 100%; }
   .search-input { font-size: 0.9rem; }
+
+  /* 股票名稱 + 股價改為上下排 */
+  .stock-header { flex-direction: column; gap: 0.5rem; }
+  .price-block { text-align: left; }
+  .price { font-size: 1.25rem; }
+
+  /* 按鈕全寬 */
+  .action-row { flex-direction: column; }
+  .chart-btn { text-align: center; }
+
+  /* meta 標籤換行 */
+  .meta-item { flex-wrap: wrap; }
+  .meta-val, .meta-link { text-align: left; }
 }
 </style>

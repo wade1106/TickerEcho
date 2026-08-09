@@ -5,6 +5,9 @@
       <div class="title-block">
         <span class="page-title">股市計算機</span>
       </div>
+      <div class="header-nav">
+        <router-link to="/stock-search" class="nav-link">股票查詢</router-link>
+      </div>
     </header>
 
     <main>
@@ -17,6 +20,7 @@
             <label>交易類別</label>
             <select v-model="stockType" class="type-select">
               <option value="stock">股票</option>
+              <option value="daytrade">股票當沖</option>
               <option value="etf">ETF</option>
             </select>
           </div>
@@ -135,7 +139,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 
-const stockType = ref<'stock' | 'etf'>('stock')
+const stockType = ref<'stock' | 'daytrade' | 'etf'>('stock')
 const buyPriceStr = ref('')
 const sellPriceStr = ref('')
 const sharesInput = ref(10)
@@ -171,7 +175,11 @@ const actualShares = computed(() =>
   sharesUnit.value === '張' ? sharesInput.value * 1000 : sharesInput.value,
 )
 
-const taxRate = computed(() => (stockType.value === 'etf' ? 0.001 : 0.003))
+const taxRate = computed(() => {
+  if (stockType.value === 'etf') return 0.001
+  if (stockType.value === 'daytrade') return 0.0015
+  return 0.003
+})
 
 function getTickSize(price: number): number {
   if (price < 10) return 0.01
@@ -287,6 +295,24 @@ header {
   white-space: nowrap;
 }
 .back:hover { color: #00c8ff; }
+
+.header-nav {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  background: transparent;
+  border: 1px solid #1e3a5f;
+  color: #4a7aad;
+  padding: 0.35rem 0.9rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: border-color 0.2s, color 0.2s;
+}
+.nav-link:hover { border-color: #00c8ff; color: #00c8ff; }
 
 .page-title {
   font-size: 1rem;
