@@ -134,9 +134,9 @@ async function submit() {
   try {
     if (props.editingAlert) {
       await client.patch(`/alerts/${props.editingAlert.id}`, {
-        above_price: abovePrice.value,
-        equal_price: equalPrice.value,
-        below_price: belowPrice.value,
+        above_price: toPrice(abovePrice.value),
+        equal_price: toPrice(equalPrice.value),
+        below_price: toPrice(belowPrice.value),
         user_email: userEmail.value,
       })
       messageType.value = 'success'
