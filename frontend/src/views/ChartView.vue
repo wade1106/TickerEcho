@@ -42,13 +42,21 @@
         <!-- K線圖 -->
         <div class="chart-wrap" v-show="chartType === 'candle'">
           <div ref="chartContainer" class="chart-container" />
-          <div v-if="loading" class="chart-overlay">載入中...</div>
-          <div v-else-if="error" class="chart-overlay error">{{ error }}</div>
+          <Transition name="fade">
+            <div v-if="loading" class="chart-overlay">
+              <span class="chart-spinner" />
+              <span>載入中...</span>
+            </div>
+            <div v-else-if="error" class="chart-overlay error">{{ error }}</div>
+          </Transition>
         </div>
 
         <!-- 壓力支撐圖 -->
         <div class="profile-wrap" v-show="chartType === 'profile'">
-          <div v-if="profileLoading" class="profile-status">載入中...</div>
+          <div v-if="profileLoading" class="profile-status">
+            <span class="chart-spinner" />
+            <span>載入中...</span>
+          </div>
           <div v-else-if="profileError" class="profile-status error">{{ profileError }}</div>
           <div v-else-if="profileData.length === 0" class="profile-status">查無資料</div>
           <div v-else class="profile-rows">
@@ -425,13 +433,32 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.6rem;
   font-size: 0.875rem;
   color: #4a7aad;
-  background: rgba(13, 24, 41, 0.7);
+  background: rgba(13, 24, 41, 0.75);
   pointer-events: none;
+  backdrop-filter: blur(2px);
 }
 
 .chart-overlay.error { color: #ff4d6d; }
+
+.chart-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #1e3a5f;
+  border-top-color: #00c8ff;
+  border-radius: 50%;
+  animation: chart-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes chart-spin { to { transform: rotate(360deg); } }
+
+/* Fade transition for loading overlay */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* 壓力支撐 */
 .profile-wrap {
@@ -445,6 +472,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.6rem;
   font-size: 0.875rem;
   color: #4a7aad;
   padding: 2rem;
