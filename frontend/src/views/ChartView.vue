@@ -193,8 +193,12 @@ function switchChartType(type: 'candle' | 'profile') {
   }
   if (type === 'candle') {
     nextTick(() => {
-      chart?.applyOptions({ height: 420 })
-      chart?.timeScale().fitContent()
+      requestAnimationFrame(() => {
+        if (chartContainer.value) {
+          chart?.resize(chartContainer.value.clientWidth, 420)
+        }
+        chart?.timeScale().fitContent()
+      })
     })
   }
 }
