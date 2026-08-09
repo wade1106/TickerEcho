@@ -193,12 +193,10 @@ function switchChartType(type: 'candle' | 'profile') {
   }
   if (type === 'candle') {
     nextTick(() => {
-      requestAnimationFrame(() => {
-        if (chartContainer.value) {
-          chart?.resize(chartContainer.value.clientWidth, 420)
-        }
-        chart?.timeScale().fitContent()
-      })
+      if (chartContainer.value) {
+        chart?.resize(chartContainer.value.clientWidth, 420)
+      }
+      chart?.timeScale().fitContent()
     })
   }
 }
@@ -213,7 +211,6 @@ onMounted(async () => {
   loadStockName()
 
   chart = createChart(chartContainer.value, {
-    autoSize: true,
     height: 420,
     layout: {
       background: { color: '#0d1829' },
@@ -249,6 +246,14 @@ onMounted(async () => {
     priceScaleId: 'volume',
   })
   chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
+
+  const handleResize = () => {
+    if (chartContainer.value) {
+      chart?.resize(chartContainer.value.clientWidth, 420)
+    }
+  }
+  window.addEventListener('resize', handleResize)
+  onUnmounted(() => window.removeEventListener('resize', handleResize))
 
   await loadChart()
 })
