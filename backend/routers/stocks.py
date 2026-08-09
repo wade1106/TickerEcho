@@ -4,7 +4,6 @@ import math
 import time
 from typing import Callable, TypeVar
 
-import requests
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -109,12 +108,24 @@ def _translate_summary(text: str) -> str:
         return text
 
 
-class _TimeoutSession(requests.Session):
+import requests_cache
+
+class _CachedSession(requests_cache.CachedSession):
     def request(self, method, url, **kwargs):
         kwargs.setdefault("timeout", 10)
         return super().request(method, url, **kwargs)
 
-_yf_session = _TimeoutSession()
+_yf_session = _CachedSession(
+    cache_name="/app/data/yf_cache",
+    backend="sqlite",
+    urls_expire_after={
+        "*crumb*": requests_cache.DO_NOT_CACHE,  # crumb 不快取（每次需要新的）
+        "*/v10/finance/quoteSummary/*": 3600,    # info: 1 小時
+        "*/v8/finance/chart/*": 120,             # chart/price: 2 分鐘
+        "*": 300,                                # 其他: 5 分鐘
+    },
+    allowable_codes=[200],
+)
 
 
 @router.get("/{ticker}/info")
