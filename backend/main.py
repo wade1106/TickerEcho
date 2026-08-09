@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from config import check_notification_channels
@@ -42,4 +43,13 @@ app.include_router(line_webhook.router)
 # Serve Vue static files (must be last)
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
-    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+    # Serve actual static assets (js/css/images) directly
+    app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
+
+    # SPA catch-all: serve index.html for any non-API route (supports Vue Router history mode)
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        file = static_dir / full_path
+        if file.exists() and file.is_file():
+            return FileResponse(str(file))
+        return FileResponse(str(static_dir / "index.html"))
