@@ -87,9 +87,17 @@ watch(() => props.editingAlert, (alert) => {
   }
 }, { immediate: true })
 
-const canSubmit = computed(() =>
-  selected.value && (abovePrice.value !== null || equalPrice.value !== null || belowPrice.value !== null)
-)
+function toPrice(v: any): number | null {
+  const n = Number(v)
+  return v !== null && v !== '' && Number.isFinite(n) ? n : null
+}
+
+const canSubmit = computed(() => {
+  const hasPrice = [abovePrice.value, equalPrice.value, belowPrice.value].some(
+    v => toPrice(v) !== null
+  )
+  return selected.value && hasPrice
+})
 
 function onSearchInput() {
   if (debounceTimer) clearTimeout(debounceTimer)
@@ -139,9 +147,9 @@ async function submit() {
         ticker: selected.value.ticker,
         name: selected.value.name,
         user_email: userEmail.value,
-        above_price: abovePrice.value,
-        equal_price: equalPrice.value,
-        below_price: belowPrice.value,
+        above_price: toPrice(abovePrice.value),
+        equal_price: toPrice(equalPrice.value),
+        below_price: toPrice(belowPrice.value),
       })
       messageType.value = 'success'
       message.value = `已新增 ${selected.value.name} 警報`
