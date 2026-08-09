@@ -315,4 +315,23 @@ a { text-decoration: none; display: flex; flex-direction: column; gap: 2px; }
 .modal-cancel:hover { border-color: #4a7aad; color: #c9d6e8; }
 .modal-confirm { padding: 0.5rem 1.25rem; background: rgba(255,77,109,0.15); border: 1px solid rgba(255,77,109,0.4); color: #ff4d6d; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 600; transition: background 0.2s, border-color 0.2s; }
 .modal-confirm:hover { background: rgba(255,77,109,0.25); border-color: #ff4d6d; }
+
+@media (max-width: 640px) {
+  header { padding: 0.6rem 1rem; }
+  .status-text { display: none; }
+  main { padding: 0.75rem 0.75rem; }
+  .alert-list { padding: 0.75rem; }
+  .list-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .list-controls { width: 100%; }
+  .search-input { width: 100%; flex: 1; }
+  .alert-list { overflow-x: auto; }
+  table { min-width: 560px; }
+  .email-cell { display: none; }
+  th:nth-child(6), td:nth-child(6) { display: none; }
+  .pagination { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .pagination-right .pg-label:first-child,
+  .pagination-right .pg-jump,
+  .pagination-right .pg-go { display: none; }
+  .page-info { margin-left: 0; }
+}
 </style>

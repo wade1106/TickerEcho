@@ -348,4 +348,13 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .message { font-size: 0.82rem; padding: 0.4rem 0.6rem; border-radius: 4px; margin: 0; }
 .message.success { color: #4ade80; background: rgba(74,222,128,0.08); border-left: 2px solid #4ade80; }
 .message.error { color: #ff4d6d; background: rgba(255,77,109,0.08); border-left: 2px solid #ff4d6d; }
+
+@media (max-width: 640px) {
+  .conditions-row { flex-direction: column; }
+  .cond-divider { display: none; }
+  .cond-block, .email-block { flex: unset; width: 100%; }
+  .form-footer { flex-direction: column; align-items: flex-start; }
+  button { width: 100%; justify-content: center; }
+  .cancel-btn { width: 100%; text-align: center; }
+}
 </style>

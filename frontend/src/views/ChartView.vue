@@ -186,6 +186,10 @@ function changeProfilePeriod(p: string) {
   profilePeriod.value = p
 }
 
+function chartHeight() {
+  return window.innerWidth <= 640 ? 300 : 420
+}
+
 function switchChartType(type: 'candle' | 'profile') {
   chartType.value = type
   if (type === 'profile' && profileData.value.length === 0) {
@@ -194,7 +198,7 @@ function switchChartType(type: 'candle' | 'profile') {
   if (type === 'candle') {
     nextTick(() => {
       if (chartContainer.value) {
-        chart?.resize(chartContainer.value.clientWidth, 420)
+        chart?.resize(chartContainer.value.clientWidth, chartHeight())
       }
       chart?.timeScale().fitContent()
     })
@@ -211,7 +215,7 @@ onMounted(async () => {
   loadStockName()
 
   chart = createChart(chartContainer.value, {
-    height: 420,
+    height: chartHeight(),
     layout: {
       background: { color: '#0d1829' },
       textColor: '#4a7aad',
@@ -249,7 +253,7 @@ onMounted(async () => {
 
   const handleResize = () => {
     if (chartContainer.value) {
-      chart?.resize(chartContainer.value.clientWidth, 420)
+      chart?.resize(chartContainer.value.clientWidth, chartHeight())
     }
   }
   window.addEventListener('resize', handleResize)
@@ -526,4 +530,14 @@ main {
 .legend-item.壓力 .dot { background: #ef5350; }
 .legend-item.價 .dot   { background: #f9a825; }
 .legend-item.支撐 .dot { background: #1565c0; }
+
+@media (max-width: 640px) {
+  header { padding: 0.6rem 0.75rem; gap: 0.75rem; }
+  main { padding: 0.75rem; }
+  .chart-toolbar { flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 0.75rem; }
+  .divider { display: none; }
+  .period-btns { flex-wrap: wrap; }
+  .price-label { width: 90px; font-size: 0.65rem; }
+  .profile-wrap { min-height: 300px; }
+}
 </style>
