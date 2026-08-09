@@ -2,6 +2,7 @@ import logging
 import math
 from typing import Literal
 
+import requests
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -53,12 +54,19 @@ def get_price(ticker: str, _: str = Depends(get_current_user)):
         info = yf.Ticker(ticker).fast_info
         price = info.last_price
         prev_close = info.previous_close
+        if price is None or prev_close is None:
+            raise HTTPException(status_code=404, detail="Stock data not available")
         change_percent = ((price - prev_close) / prev_close * 100) if prev_close else 0
         return {
             "ticker": ticker,
             "price": round(price, 2),
             "change_percent": round(change_percent, 2),
         }
+    except HTTPException:
+        raise
+    except (KeyError, AttributeError) as e:
+        logger.warning(f"No price data for {ticker}: {e}")
+        raise HTTPException(status_code=404, detail="Stock data not available")
     except Exception as e:
         logger.error(f"Failed to fetch price for {ticker}: {e}")
         raise HTTPException(status_code=502, detail="Failed to fetch stock price")
@@ -69,16 +77,26 @@ def _translate_summary(text: str) -> str:
         return text
     try:
         from deep_translator import GoogleTranslator
-        return GoogleTranslator(source="en", target="zh-TW").translate(text)
+        return GoogleTranslator(source="en", target="zh-TW").translate(text, timeout=5)
     except Exception as e:
         logger.warning(f"Translation failed, returning original: {e}")
         return text
 
 
+class _TimeoutSession(requests.Session):
+    def request(self, method, url, **kwargs):
+        kwargs.setdefault("timeout", 10)
+        return super().request(method, url, **kwargs)
+
+_yf_session = _TimeoutSession()
+
+
 @router.get("/{ticker}/info")
 def get_info(ticker: str, _: str = Depends(get_current_user)):
     try:
-        info = yf.Ticker(ticker).info
+        info = yf.Ticker(ticker, session=_yf_session).info
+        if not info or not (info.get("shortName") or info.get("longName")):
+            raise HTTPException(status_code=404, detail="Stock data not available")
         summary_en = info.get("longBusinessSummary", "")
         return {
             "ticker": ticker,
@@ -92,6 +110,12 @@ def get_info(ticker: str, _: str = Depends(get_current_user)):
             "currency": info.get("currency", ""),
             "summary": _translate_summary(summary_en),
         }
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # yfinance returns empty JSON (e.g. delisted or unsupported ticker)
+        logger.warning(f"No info data for {ticker}: {e}")
+        raise HTTPException(status_code=404, detail="Stock data not available")
     except Exception as e:
         logger.error(f"Failed to fetch info for {ticker}: {e}")
         raise HTTPException(status_code=502, detail="Failed to fetch stock info")

@@ -27,6 +27,7 @@
             autocomplete="off"
           />
           <span v-if="searching" class="search-spinner" />
+          <button v-else-if="query" class="clear-btn" @click="clearSearch" tabindex="-1" type="button">✕</button>
         </div>
 
         <!-- 自動補全下拉 -->
@@ -134,6 +135,15 @@ const priceInfo = ref<any>(null)
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
+function clearSearch() {
+  query.value = ''
+  suggestions.value = []
+  error.value = ''
+  stockInfo.value = null
+  priceInfo.value = null
+  inputEl.value?.focus()
+}
+
 function onInput() {
   activeSuggestion.value = -1
   if (searchTimer) clearTimeout(searchTimer)
@@ -176,14 +186,21 @@ async function loadStock(ticker: string) {
   stockInfo.value = null
   priceInfo.value = null
   try {
-    const [infoRes, priceRes] = await Promise.all([
+    const [infoResult, priceResult] = await Promise.allSettled([
       client.get(`/stocks/${ticker}/info`),
       client.get(`/stocks/${ticker}/price`),
     ])
-    stockInfo.value = infoRes.data
-    priceInfo.value = priceRes.data
-  } catch (e: any) {
-    error.value = e?.response?.data?.detail ?? '載入失敗，請稍後再試'
+    if (infoResult.status === 'fulfilled') {
+      stockInfo.value = infoResult.value.data
+    } else {
+      const detail = (infoResult.reason as any)?.response?.data?.detail
+      error.value = detail ?? '載入失敗，請稍後再試'
+      return
+    }
+    if (priceResult.status === 'fulfilled') {
+      priceInfo.value = priceResult.value.data
+    }
+    // price 失敗不擋顯示，價格欄位顯示 —
   } finally {
     loading.value = false
   }
@@ -294,6 +311,19 @@ main {
   animation: spin 0.65s linear infinite;
   flex-shrink: 0;
 }
+
+.clear-btn {
+  background: transparent;
+  border: none;
+  color: #2d4a6e;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+.clear-btn:hover { color: #c9d6e8; }
 
 .suggestions {
   position: absolute;
