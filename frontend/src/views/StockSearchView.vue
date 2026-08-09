@@ -473,8 +473,9 @@ main {
 }
 
 @media (max-width: 640px) {
-  header { padding: 0.6rem 0.75rem; }
-  .header-nav { display: none; }
+  header { padding: 0.6rem 0.75rem; gap: 0.5rem; flex-wrap: wrap; }
+  .header-nav { width: 100%; border-top: 1px solid #111f35; padding-top: 0.5rem; }
+  .nav-link { font-size: 0.75rem; padding: 0.28rem 0.65rem; }
   main { padding: 1rem 0.75rem; }
 
   .search-bar-wrap { max-width: 100%; }

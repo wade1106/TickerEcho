@@ -615,7 +615,9 @@ tr:hover td { background: rgba(255, 255, 255, 0.015); }
 }
 
 @media (max-width: 640px) {
-  header { padding: 0.6rem 0.75rem; }
+  header { padding: 0.6rem 0.75rem; gap: 0.5rem; flex-wrap: wrap; }
+  .header-nav { width: 100%; border-top: 1px solid #111f35; padding-top: 0.5rem; }
+  .nav-link { font-size: 0.75rem; padding: 0.28rem 0.65rem; }
   main { padding: 0.75rem; }
 
   /* 參數卡改單欄 */
