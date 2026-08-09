@@ -40,7 +40,7 @@
         </div>
 
         <!-- K線圖 -->
-        <div class="chart-wrap" v-show="chartType === 'candle'">
+        <div class="chart-wrap tab-content" :class="{ 'tab-hidden': !contentVisible }" v-show="chartType === 'candle'">
           <div ref="chartContainer" class="chart-container" />
           <Transition name="fade">
             <div v-if="loading" class="chart-overlay">
@@ -52,7 +52,7 @@
         </div>
 
         <!-- 壓力支撐圖 -->
-        <div class="profile-wrap" v-show="chartType === 'profile'">
+        <div class="profile-wrap tab-content" :class="{ 'tab-hidden': !contentVisible }" v-show="chartType === 'profile'">
           <div v-if="profileLoading" class="profile-status">
             <span class="chart-spinner" />
             <span>載入中...</span>
@@ -111,6 +111,7 @@ const periods = [
 
 // --- 壓力支撐 ---
 const chartType = ref<'candle' | 'profile'>('candle')
+const contentVisible = ref(true)
 const profilePeriod = ref('3mo')
 const profileLoading = ref(false)
 const profileError = ref('')
@@ -198,19 +199,26 @@ function chartHeight() {
   return window.innerWidth <= 640 ? 300 : 420
 }
 
-function switchChartType(type: 'candle' | 'profile') {
+async function switchChartType(type: 'candle' | 'profile') {
+  if (type === chartType.value) return
+  // fade out
+  contentVisible.value = false
+  await new Promise(r => setTimeout(r, 150))
+  // switch tab
   chartType.value = type
   if (type === 'profile' && profileData.value.length === 0) {
     loadProfile()
   }
   if (type === 'candle') {
-    nextTick(() => {
-      if (chartContainer.value) {
-        chart?.resize(chartContainer.value.clientWidth, chartHeight())
-      }
-      chart?.timeScale().fitContent()
-    })
+    await nextTick()
+    if (chartContainer.value) {
+      chart?.resize(chartContainer.value.clientWidth, chartHeight())
+    }
+    chart?.timeScale().fitContent()
   }
+  // fade in
+  await nextTick()
+  contentVisible.value = true
 }
 
 watch(period, loadChart)
@@ -459,6 +467,14 @@ main {
 /* Fade transition for loading overlay */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* Tab switch fade */
+.tab-content {
+  transition: opacity 0.15s ease;
+}
+.tab-hidden {
+  opacity: 0;
+}
 
 /* 壓力支撐 */
 .profile-wrap {
