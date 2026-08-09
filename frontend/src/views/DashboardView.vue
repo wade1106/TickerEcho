@@ -322,10 +322,10 @@ a { text-decoration: none; display: flex; flex-direction: column; gap: 2px; }
 .modal-confirm:hover { background: rgba(255,77,109,0.25); border-color: #ff4d6d; }
 
 @media (max-width: 640px) {
-  header { padding: 0.6rem 1rem; }
+  header { padding: 0.6rem 1rem; flex-wrap: wrap; gap: 0.5rem; }
   .status-text { display: none; }
-  .calc-link { display: none; }
-  /* 手機改用漢堡或直接隱藏 nav 連結，保留登出 */
+  .header-right { width: 100%; border-top: 1px solid #111f35; padding-top: 0.5rem; gap: 0.5rem; }
+  .calc-link { font-size: 0.75rem; padding: 0.28rem 0.65rem; }
   main { padding: 0.75rem 0.75rem; }
   .alert-list { padding: 0.75rem; }
   .list-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
