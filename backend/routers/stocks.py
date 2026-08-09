@@ -1,5 +1,6 @@
 import logging
 import math
+import time
 from typing import Literal
 
 import requests
@@ -12,6 +13,12 @@ from stock_data import search_stocks
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
+
+# 簡易 TTL 快取，減少對 Yahoo Finance 的請求頻率
+_price_cache: dict[str, tuple[float, dict]] = {}   # ticker -> (ts, data)
+_info_cache: dict[str, tuple[float, dict]] = {}    # ticker -> (ts, data)
+PRICE_TTL = 60        # 秒
+INFO_TTL  = 3600      # 秒
 
 
 def _tick_size(price: float) -> float:
@@ -50,25 +57,30 @@ def search(
 
 @router.get("/{ticker}/price")
 def get_price(ticker: str, _: str = Depends(get_current_user)):
+    cached = _price_cache.get(ticker)
+    if cached and time.time() - cached[0] < PRICE_TTL:
+        return cached[1]
     try:
-        info = yf.Ticker(ticker).fast_info
+        info = yf.Ticker(ticker, session=_yf_session).fast_info
         price = info.last_price
         prev_close = info.previous_close
         if price is None or prev_close is None:
-            raise HTTPException(status_code=404, detail="Stock data not available")
+            raise HTTPException(status_code=502, detail="Stock data temporarily unavailable")
         change_percent = ((price - prev_close) / prev_close * 100) if prev_close else 0
-        return {
+        data = {
             "ticker": ticker,
             "price": round(price, 2),
             "change_percent": round(change_percent, 2),
         }
+        _price_cache[ticker] = (time.time(), data)
+        return data
     except HTTPException:
         raise
-    except (KeyError, AttributeError) as e:
-        logger.warning(f"No price data for {ticker}: {e}")
-        raise HTTPException(status_code=404, detail="Stock data not available")
     except Exception as e:
         logger.error(f"Failed to fetch price for {ticker}: {e}")
+        if cached:
+            logger.warning(f"Returning stale price cache for {ticker}")
+            return cached[1]
         raise HTTPException(status_code=502, detail="Failed to fetch stock price")
 
 
@@ -93,12 +105,15 @@ _yf_session = _TimeoutSession()
 
 @router.get("/{ticker}/info")
 def get_info(ticker: str, _: str = Depends(get_current_user)):
+    cached = _info_cache.get(ticker)
+    if cached and time.time() - cached[0] < INFO_TTL:
+        return cached[1]
     try:
         info = yf.Ticker(ticker, session=_yf_session).info
-        if not info or not (info.get("shortName") or info.get("longName")):
-            raise HTTPException(status_code=404, detail="Stock data not available")
+        if not info:
+            raise HTTPException(status_code=502, detail="Stock data temporarily unavailable")
         summary_en = info.get("longBusinessSummary", "")
-        return {
+        data = {
             "ticker": ticker,
             "name": info.get("longName") or info.get("shortName", ""),
             "sector": info.get("sector", ""),
@@ -110,14 +125,15 @@ def get_info(ticker: str, _: str = Depends(get_current_user)):
             "currency": info.get("currency", ""),
             "summary": _translate_summary(summary_en),
         }
+        _info_cache[ticker] = (time.time(), data)
+        return data
     except HTTPException:
         raise
-    except ValueError as e:
-        # yfinance returns empty JSON (e.g. delisted or unsupported ticker)
-        logger.warning(f"No info data for {ticker}: {e}")
-        raise HTTPException(status_code=404, detail="Stock data not available")
     except Exception as e:
         logger.error(f"Failed to fetch info for {ticker}: {e}")
+        if cached:
+            logger.warning(f"Returning stale info cache for {ticker}")
+            return cached[1]
         raise HTTPException(status_code=502, detail="Failed to fetch stock info")
 
 
@@ -133,7 +149,7 @@ def get_chart(
             detail=f"Invalid period. Must be one of: {', '.join(sorted(VALID_PERIODS))}",
         )
     try:
-        df = yf.Ticker(ticker).history(period=period)
+        df = yf.Ticker(ticker, session=_yf_session).history(period=period)
         if df.empty:
             return []
         records = []
@@ -164,7 +180,7 @@ def get_volume_profile(
             detail=f"Invalid period. Must be one of: {', '.join(sorted(VALID_PERIODS))}",
         )
     try:
-        tk = yf.Ticker(ticker)
+        tk = yf.Ticker(ticker, session=_yf_session)
         df = tk.history(period=period)
         if df.empty:
             return []
