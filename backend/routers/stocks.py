@@ -1,11 +1,24 @@
+import concurrent.futures
 import logging
 import math
 import time
-from typing import Literal
+from typing import Callable, TypeVar
 
 import requests
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+T = TypeVar("T")
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+
+
+def _run(fn: Callable[[], T], timeout: float = 12) -> T:
+    """在 thread pool 執行 fn，超過 timeout 秒直接拋 502。"""
+    future = _executor.submit(fn)
+    try:
+        return future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        raise HTTPException(status_code=502, detail="Upstream request timed out")
 
 from auth import get_current_user
 from stock_data import search_stocks
@@ -61,9 +74,10 @@ def get_price(ticker: str, _: str = Depends(get_current_user)):
     if cached and time.time() - cached[0] < PRICE_TTL:
         return cached[1]
     try:
-        info = yf.Ticker(ticker, session=_yf_session).fast_info
-        price = info.last_price
-        prev_close = info.previous_close
+        def _fetch():
+            fi = yf.Ticker(ticker, session=_yf_session).fast_info
+            return fi.last_price, fi.previous_close
+        price, prev_close = _run(_fetch)
         if price is None or prev_close is None:
             raise HTTPException(status_code=502, detail="Stock data temporarily unavailable")
         change_percent = ((price - prev_close) / prev_close * 100) if prev_close else 0
@@ -109,7 +123,7 @@ def get_info(ticker: str, _: str = Depends(get_current_user)):
     if cached and time.time() - cached[0] < INFO_TTL:
         return cached[1]
     try:
-        info = yf.Ticker(ticker, session=_yf_session).info
+        info = _run(lambda: yf.Ticker(ticker, session=_yf_session).info)
         if not info:
             raise HTTPException(status_code=502, detail="Stock data temporarily unavailable")
         summary_en = info.get("longBusinessSummary", "")
@@ -123,7 +137,7 @@ def get_info(ticker: str, _: str = Depends(get_current_user)):
             "employees": info.get("fullTimeEmployees"),
             "market_cap": info.get("marketCap"),
             "currency": info.get("currency", ""),
-            "summary": _translate_summary(summary_en),
+            "summary": _run(lambda: _translate_summary(summary_en), timeout=6),
         }
         _info_cache[ticker] = (time.time(), data)
         return data
@@ -149,7 +163,7 @@ def get_chart(
             detail=f"Invalid period. Must be one of: {', '.join(sorted(VALID_PERIODS))}",
         )
     try:
-        df = yf.Ticker(ticker, session=_yf_session).history(period=period)
+        df = _run(lambda: yf.Ticker(ticker, session=_yf_session).history(period=period))
         if df.empty:
             return []
         records = []
@@ -180,12 +194,14 @@ def get_volume_profile(
             detail=f"Invalid period. Must be one of: {', '.join(sorted(VALID_PERIODS))}",
         )
     try:
-        tk = yf.Ticker(ticker, session=_yf_session)
-        df = tk.history(period=period)
+        def _fetch_profile():
+            tk = yf.Ticker(ticker, session=_yf_session)
+            df = tk.history(period=period)
+            price = tk.fast_info.last_price if not df.empty else None
+            return df, price
+        df, current_price = _run(_fetch_profile)
         if df.empty:
             return []
-
-        current_price = tk.fast_info.last_price
         min_price = float(df["Low"].min())
         max_price = float(df["High"].max())
         bucket_size = _calc_bucket_size(min_price, max_price)
