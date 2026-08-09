@@ -8,6 +8,7 @@
       <div class="header-right">
         <span class="status-dot"></span>
         <span class="status-text">系統運行中</span>
+        <router-link to="/calculator" class="calc-link">股市計算機</router-link>
         <button class="logout-btn" @click="logout">登出</button>
       </div>
     </header>
@@ -228,6 +229,9 @@ header {
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.7); animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 .status-text { font-size: 0.75rem; color: #4a7aad; letter-spacing: 0.5px; }
+
+.calc-link { background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; padding: 0.35rem 0.9rem; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: border-color 0.2s, color 0.2s; }
+.calc-link:hover { border-color: #00c8ff; color: #00c8ff; }
 
 .logout-btn { background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; padding: 0.35rem 0.9rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: border-color 0.2s, color 0.2s; }
 .logout-btn:hover { border-color: #00c8ff; color: #00c8ff; }

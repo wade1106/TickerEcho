@@ -19,6 +19,11 @@ const router = createRouter({
       name: 'chart',
       component: () => import('@/views/ChartView.vue'),
     },
+    {
+      path: '/calculator',
+      name: 'calculator',
+      component: () => import('@/views/CalculatorView.vue'),
+    },
   ],
 })
 
