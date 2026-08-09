@@ -25,7 +25,7 @@
             <label>買入價格</label>
             <div class="num-input">
               <button class="adj-btn" @click="adjustPrice('buy', -1)">−</button>
-              <input v-model.number="buyPrice" type="number" min="0.01" class="num-field" @change="clampBuy" />
+              <input v-model.number="buyPrice" type="number" min="0" class="num-field" @change="clampBuy" />
               <button class="adj-btn" @click="adjustPrice('buy', 1)">+</button>
               <span class="unit-label">元</span>
             </div>
@@ -35,7 +35,7 @@
             <label>賣出價格</label>
             <div class="num-input">
               <button class="adj-btn" @click="adjustPrice('sell', -1)">−</button>
-              <input v-model.number="sellPrice" type="number" min="0.01" class="num-field" @change="clampSell" />
+              <input v-model.number="sellPrice" type="number" min="0" class="num-field" @change="clampSell" />
               <button class="adj-btn" @click="adjustPrice('sell', 1)">+</button>
               <span class="unit-label">元</span>
             </div>
@@ -62,6 +62,9 @@
         <!-- 右側：試算結果 -->
         <div class="result-card">
           <div class="card-title">試算結果</div>
+          <div v-if="buyPrice <= 0" class="empty-hint">請輸入買入價格開始試算</div>
+
+          <template v-else>
           <div class="result-summary">
             <span>買入價格 <span class="sum-val">{{ formatPrice(buyPrice) }}元</span></span>
             <span>賣出價格 <span class="sum-val">{{ formatPrice(sellPrice) }}元</span></span>
@@ -106,6 +109,7 @@
               </tbody>
             </table>
           </div>
+          </template>
         </div>
       </div>
     </main>
@@ -116,8 +120,8 @@
 import { ref, computed } from 'vue'
 
 const stockType = ref<'stock' | 'etf'>('stock')
-const buyPrice = ref(500)
-const sellPrice = ref(600)
+const buyPrice = ref(0)
+const sellPrice = ref(0)
 const sharesInput = ref(10)
 const sharesUnit = ref<'股' | '張'>('股')
 
@@ -204,7 +208,7 @@ const breakevenPrice = computed(() => {
 function adjustPrice(field: 'buy' | 'sell', dir: number) {
   const cur = field === 'buy' ? buyPrice.value : sellPrice.value
   const tick = getTickSize(cur)
-  const next = Math.max(tick, roundToTick(cur + dir * tick, tick))
+  const next = Math.max(0, roundToTick(cur + dir * tick, tick))
   if (field === 'buy') buyPrice.value = next
   else sellPrice.value = next
 }
@@ -214,11 +218,11 @@ function adjustShares(dir: number) {
 }
 
 function clampBuy() {
-  if (!buyPrice.value || buyPrice.value <= 0) buyPrice.value = 0.01
+  if (!buyPrice.value || buyPrice.value < 0) buyPrice.value = 0
 }
 
 function clampSell() {
-  if (!sellPrice.value || sellPrice.value <= 0) sellPrice.value = 0.01
+  if (!sellPrice.value || sellPrice.value < 0) sellPrice.value = 0
 }
 </script>
 
@@ -417,6 +421,13 @@ main {
 
 .result-card .card-title {
   padding: 1rem 1.25rem 0;
+}
+
+.empty-hint {
+  padding: 3rem 1.25rem;
+  text-align: center;
+  color: #2d4a6e;
+  font-size: 0.875rem;
 }
 
 .result-summary {
