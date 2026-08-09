@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Literal
 
 import yfinance as yf
@@ -10,6 +11,29 @@ from stock_data import search_stocks
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
+
+
+def _tick_size(price: float) -> float:
+    """台股最小跳動單位（依股價分級）"""
+    if price < 10:
+        return 0.01
+    elif price < 50:
+        return 0.05
+    elif price < 100:
+        return 0.10
+    elif price < 500:
+        return 0.50
+    elif price < 1000:
+        return 1.00
+    else:
+        return 5.00
+
+
+def _calc_bucket_size(min_price: float, max_price: float, target: int = 40) -> float:
+    """以 tick size 為單位計算 bucket 寬度，目標約 target 格"""
+    tick = _tick_size((min_price + max_price) / 2)
+    ticks_per_bucket = max(1, math.ceil((max_price - min_price) / target / tick))
+    return ticks_per_bucket * tick
 
 VALID_PERIODS = {"5d", "1mo", "3mo", "6mo", "1y"}
 
@@ -91,8 +115,8 @@ def get_volume_profile(
         current_price = tk.fast_info.last_price
         min_price = float(df["Low"].min())
         max_price = float(df["High"].max())
-        num_buckets = 40
-        bucket_size = (max_price - min_price) / num_buckets
+        bucket_size = _calc_bucket_size(min_price, max_price)
+        num_buckets = math.ceil((max_price - min_price) / bucket_size)
 
         volumes = [0.0] * num_buckets
         for _, row in df.iterrows():

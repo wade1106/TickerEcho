@@ -80,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { createChart, CandlestickSeries, HistogramSeries, type IChartApi } from 'lightweight-charts'
 import client from '@/api/client'
@@ -190,6 +190,12 @@ function switchChartType(type: 'candle' | 'profile') {
   chartType.value = type
   if (type === 'profile' && profileData.value.length === 0) {
     loadProfile()
+  }
+  if (type === 'candle') {
+    nextTick(() => {
+      chart?.applyOptions({ height: 420 })
+      chart?.timeScale().fitContent()
+    })
   }
 }
 
