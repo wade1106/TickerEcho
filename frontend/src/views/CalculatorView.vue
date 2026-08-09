@@ -23,22 +23,38 @@
 
           <div class="param-group">
             <label>買入價格</label>
-            <div class="num-input">
+            <div class="num-input" :class="{ 'input-invalid': buyPriceError }">
               <button class="adj-btn" @click="adjustPrice('buy', -1)">−</button>
-              <input v-model.number="buyPrice" type="number" min="0" class="num-field" @change="clampBuy" />
+              <input
+                v-model="buyPriceStr"
+                type="text"
+                inputmode="decimal"
+                class="num-field"
+                placeholder="0"
+              />
+              <button v-if="buyPriceStr" class="clear-btn" @click="buyPriceStr = ''">×</button>
               <button class="adj-btn" @click="adjustPrice('buy', 1)">+</button>
               <span class="unit-label">元</span>
             </div>
+            <div v-if="buyPriceError" class="field-error">{{ buyPriceError }}</div>
           </div>
 
           <div class="param-group">
             <label>賣出價格</label>
-            <div class="num-input">
+            <div class="num-input" :class="{ 'input-invalid': sellPriceError }">
               <button class="adj-btn" @click="adjustPrice('sell', -1)">−</button>
-              <input v-model.number="sellPrice" type="number" min="0" class="num-field" @change="clampSell" />
+              <input
+                v-model="sellPriceStr"
+                type="text"
+                inputmode="decimal"
+                class="num-field"
+                placeholder="0"
+              />
+              <button v-if="sellPriceStr" class="clear-btn" @click="sellPriceStr = ''">×</button>
               <button class="adj-btn" @click="adjustPrice('sell', 1)">+</button>
               <span class="unit-label">元</span>
             </div>
+            <div v-if="sellPriceError" class="field-error">{{ sellPriceError }}</div>
           </div>
 
           <div class="param-group">
@@ -120,10 +136,36 @@
 import { ref, computed } from 'vue'
 
 const stockType = ref<'stock' | 'etf'>('stock')
-const buyPrice = ref(0)
-const sellPrice = ref(0)
+const buyPriceStr = ref('')
+const sellPriceStr = ref('')
 const sharesInput = ref(10)
 const sharesUnit = ref<'股' | '張'>('股')
+
+// 將字串解析為數字，空字串視為 0
+const buyPrice = computed(() => {
+  const n = parseFloat(buyPriceStr.value)
+  return isNaN(n) ? 0 : n
+})
+const sellPrice = computed(() => {
+  const n = parseFloat(sellPriceStr.value)
+  return isNaN(n) ? 0 : n
+})
+
+// 驗證：只有輸入了內容且是負數才顯示錯誤
+const buyPriceError = computed(() => {
+  if (!buyPriceStr.value) return ''
+  const n = parseFloat(buyPriceStr.value)
+  if (isNaN(n)) return '請輸入有效數字'
+  if (n < 0) return '價格不能為負數'
+  return ''
+})
+const sellPriceError = computed(() => {
+  if (!sellPriceStr.value) return ''
+  const n = parseFloat(sellPriceStr.value)
+  if (isNaN(n)) return '請輸入有效數字'
+  if (n < 0) return '價格不能為負數'
+  return ''
+})
 
 const actualShares = computed(() =>
   sharesUnit.value === '張' ? sharesInput.value * 1000 : sharesInput.value,
@@ -207,22 +249,15 @@ const breakevenPrice = computed(() => {
 
 function adjustPrice(field: 'buy' | 'sell', dir: number) {
   const cur = field === 'buy' ? buyPrice.value : sellPrice.value
-  const tick = getTickSize(cur)
+  const tick = getTickSize(cur > 0 ? cur : 1)
   const next = Math.max(0, roundToTick(cur + dir * tick, tick))
-  if (field === 'buy') buyPrice.value = next
-  else sellPrice.value = next
+  const str = formatPrice(next)
+  if (field === 'buy') buyPriceStr.value = str
+  else sellPriceStr.value = str
 }
 
 function adjustShares(dir: number) {
   sharesInput.value = Math.max(1, sharesInput.value + dir)
-}
-
-function clampBuy() {
-  if (!buyPrice.value || buyPrice.value < 0) buyPrice.value = 0
-}
-
-function clampSell() {
-  if (!sellPrice.value || sellPrice.value < 0) sellPrice.value = 0
 }
 </script>
 
@@ -374,6 +409,35 @@ main {
   align-items: center;
   flex-shrink: 0;
 }
+
+.input-invalid .adj-btn,
+.input-invalid .num-field,
+.input-invalid .unit-label,
+.input-invalid .clear-btn {
+  border-color: #ef5350 !important;
+}
+
+.field-error {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: #ef5350;
+  padding-left: 2px;
+}
+
+.clear-btn {
+  height: 36px;
+  padding: 0 0.45rem;
+  background: #060f1e;
+  border: 1px solid #1e3a5f;
+  border-left: none;
+  color: #4a7aad;
+  font-size: 0.9rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+.clear-btn:hover { color: #ff4d6d; }
 
 .unit-toggle {
   display: flex;

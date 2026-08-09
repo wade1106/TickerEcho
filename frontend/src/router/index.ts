@@ -24,6 +24,11 @@ const router = createRouter({
       name: 'calculator',
       component: () => import('@/views/CalculatorView.vue'),
     },
+    {
+      path: '/stock-search',
+      name: 'stock-search',
+      component: () => import('@/views/StockSearchView.vue'),
+    },
   ],
 })
 

@@ -64,6 +64,27 @@ def get_price(ticker: str, _: str = Depends(get_current_user)):
         raise HTTPException(status_code=502, detail="Failed to fetch stock price")
 
 
+@router.get("/{ticker}/info")
+def get_info(ticker: str, _: str = Depends(get_current_user)):
+    try:
+        info = yf.Ticker(ticker).info
+        return {
+            "ticker": ticker,
+            "name": info.get("longName") or info.get("shortName", ""),
+            "sector": info.get("sector", ""),
+            "industry": info.get("industry", ""),
+            "country": info.get("country", ""),
+            "website": info.get("website", ""),
+            "employees": info.get("fullTimeEmployees"),
+            "market_cap": info.get("marketCap"),
+            "currency": info.get("currency", ""),
+            "summary": info.get("longBusinessSummary", ""),
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch info for {ticker}: {e}")
+        raise HTTPException(status_code=502, detail="Failed to fetch stock info")
+
+
 @router.get("/{ticker}/chart")
 def get_chart(
     ticker: str,

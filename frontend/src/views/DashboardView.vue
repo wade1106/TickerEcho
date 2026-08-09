@@ -8,6 +8,7 @@
       <div class="header-right">
         <span class="status-dot"></span>
         <span class="status-text">系統運行中</span>
+        <router-link to="/stock-search" class="calc-link">股票查詢</router-link>
         <router-link to="/calculator" class="calc-link">股市計算機</router-link>
         <button class="logout-btn" @click="logout">登出</button>
       </div>
@@ -324,6 +325,7 @@ a { text-decoration: none; display: flex; flex-direction: column; gap: 2px; }
   header { padding: 0.6rem 1rem; }
   .status-text { display: none; }
   .calc-link { display: none; }
+  /* 手機改用漢堡或直接隱藏 nav 連結，保留登出 */
   main { padding: 0.75rem 0.75rem; }
   .alert-list { padding: 0.75rem; }
   .list-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
