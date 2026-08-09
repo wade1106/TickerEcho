@@ -75,9 +75,9 @@
                   <th>賣出價格</th>
                   <th>損益金額</th>
                   <th>報酬率</th>
-                  <th>買入手續費</th>
-                  <th>賣出手續費</th>
-                  <th>證券交易稅</th>
+                  <th class="col-buy-fee">買入手續費</th>
+                  <th class="col-sell-fee">賣出手續費</th>
+                  <th class="col-tax">證券交易稅</th>
                   <th>固投資成本</th>
                 </tr>
               </thead>
@@ -92,15 +92,15 @@
                     <span :class="{ 'profit-box': row.isTarget }">{{ row.profit.toLocaleString() }}</span>
                   </td>
                   <td :class="row.profit >= 0 ? 'pos' : 'neg'">{{ row.returnRate }}</td>
-                  <td class="fee-cell">
+                  <td class="fee-cell col-buy-fee">
                     {{ row.buyFee }}
                     <span class="actual-fee">({{ row.buyFeeActual }})</span>
                   </td>
-                  <td class="fee-cell">
+                  <td class="fee-cell col-sell-fee">
                     {{ row.sellFee }}
                     <span class="actual-fee">({{ row.sellFeeActual }})</span>
                   </td>
-                  <td>{{ row.tax }}</td>
+                  <td class="col-tax">{{ row.tax }}</td>
                   <td>{{ row.totalCost.toLocaleString() }}</td>
                 </tr>
               </tbody>
@@ -506,12 +506,36 @@ tr:hover td { background: rgba(255, 255, 255, 0.015); }
 @media (max-width: 900px) {
   .calc-layout { flex-direction: column; }
   .params-card { width: 100%; }
+
+  /* 手機上參數卡改 2 欄 grid */
+  .params-card { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.25rem; }
+  .card-title { grid-column: 1 / -1; }
+  .param-note { grid-column: 1 / -1; }
 }
 
 @media (max-width: 640px) {
   header { padding: 0.6rem 0.75rem; }
   main { padding: 0.75rem; }
-  .params-card { padding: 1rem; }
-  .result-summary { gap: 0.75rem; }
+
+  /* 參數卡改單欄 */
+  .params-card { grid-template-columns: 1fr; padding: 1rem; }
+
+  /* 數字輸入框 adj-btn 縮小 */
+  .adj-btn { width: 30px; }
+
+  /* 試算結果 summary 換行 */
+  .result-summary { flex-direction: column; gap: 0.4rem; }
+
+  /* 手機隱藏次要欄：買入手續費、賣出手續費、交易稅（保留賣出價格/損益/報酬率/固投資成本） */
+  th.col-buy-fee, td.col-buy-fee,
+  th.col-sell-fee, td.col-sell-fee,
+  th.col-tax, td.col-tax { display: none; }
+
+  /* 括號內的實際費用在手機上不顯示 */
+  .actual-fee { display: none; }
+
+  /* 調小 table 字體和 padding */
+  table { font-size: 0.78rem; }
+  th, td { padding: 0.45rem 0.55rem; }
 }
 </style>

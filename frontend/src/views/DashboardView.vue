@@ -323,6 +323,7 @@ a { text-decoration: none; display: flex; flex-direction: column; gap: 2px; }
 @media (max-width: 640px) {
   header { padding: 0.6rem 1rem; }
   .status-text { display: none; }
+  .calc-link { display: none; }
   main { padding: 0.75rem 0.75rem; }
   .alert-list { padding: 0.75rem; }
   .list-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
