@@ -48,7 +48,7 @@
           <span v-if="submitting" class="btn-spinner"></span>
           {{ submitting ? '處理中...' : (editingAlert ? '更新' : '加入警報') }}
         </button>
-        <button v-if="editingAlert" class="cancel-btn" @click="cancelEdit">取消</button>
+        <button class="cancel-btn" @click="editingAlert ? cancelEdit() : reset()">取消</button>
         <p v-if="message" :class="['message', messageType]">{{ message }}</p>
       </div>
     </div>
