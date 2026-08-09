@@ -6,6 +6,10 @@
         <span class="ticker-label">{{ ticker }}</span>
         <span class="stock-name-label" v-if="stockName">{{ stockName }}</span>
       </div>
+      <div class="header-nav">
+        <router-link to="/stock-search" class="nav-link">股票查詢</router-link>
+        <router-link to="/calculator" class="nav-link">股市計算機</router-link>
+      </div>
     </header>
     <main>
       <div class="chart-card">
@@ -317,6 +321,25 @@ header {
 
 .back:hover { color: #00c8ff; }
 
+.header-nav {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  background: transparent;
+  border: 1px solid #1e3a5f;
+  color: #4a7aad;
+  padding: 0.35rem 0.9rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: border-color 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+.nav-link:hover { border-color: #00c8ff; color: #00c8ff; }
+
 .title-block {
   display: flex;
   align-items: baseline;
@@ -583,6 +606,7 @@ main {
 
 @media (max-width: 640px) {
   header { padding: 0.6rem 0.75rem; gap: 0.75rem; }
+  .header-nav { display: none; }
   main { padding: 0.75rem; }
   .chart-toolbar { flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 0.75rem; }
   .divider { display: none; }
