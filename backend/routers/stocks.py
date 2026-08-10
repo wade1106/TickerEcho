@@ -1,23 +1,14 @@
 import concurrent.futures
+import json
 import logging
 import math
+import os
+import threading
 import time
 from typing import Callable, TypeVar
 
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
-
-T = TypeVar("T")
-_executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
-
-
-def _run(fn: Callable[[], T], timeout: float = 12) -> T:
-    """在 thread pool 執行 fn，超過 timeout 秒直接拋 502。"""
-    future = _executor.submit(fn)
-    try:
-        return future.result(timeout=timeout)
-    except concurrent.futures.TimeoutError:
-        raise HTTPException(status_code=502, detail="Upstream request timed out")
 
 from auth import get_current_user
 from stock_data import search_stocks
@@ -26,15 +17,62 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
-# 簡易 TTL 快取，減少對 Yahoo Finance 的請求頻率
-_price_cache: dict[str, tuple[float, dict]] = {}   # ticker -> (ts, data)
-_info_cache: dict[str, tuple[float, dict]] = {}    # ticker -> (ts, data)
-PRICE_TTL = 60        # 秒
-INFO_TTL  = 3600      # 秒
+# ── 持久化快取 ────────────────────────────────────────────────
+_CACHE_FILE = "/app/data/yf_cache.json"
+_cache_lock = threading.Lock()
+PRICE_TTL = 60
+INFO_TTL = 3600
 
 
+def _load_disk_cache() -> dict:
+    try:
+        with open(_CACHE_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"price": {}, "info": {}}
+
+
+def _save_disk_cache(cache: dict) -> None:
+    try:
+        os.makedirs(os.path.dirname(_CACHE_FILE), exist_ok=True)
+        with open(_CACHE_FILE, "w") as f:
+            json.dump(cache, f)
+    except Exception as e:
+        logger.warning(f"Failed to save cache: {e}")
+
+
+_disk_cache = _load_disk_cache()
+
+
+def _get_cache(category: str, ticker: str, ttl: int):
+    with _cache_lock:
+        entry = _disk_cache.get(category, {}).get(ticker)
+    if entry and time.time() - entry["ts"] < ttl:
+        return entry["data"]
+    return None
+
+
+def _set_cache(category: str, ticker: str, data: dict) -> None:
+    with _cache_lock:
+        _disk_cache.setdefault(category, {})[ticker] = {"ts": time.time(), "data": data}
+        _save_disk_cache(_disk_cache)
+
+
+# ── Thread pool timeout ───────────────────────────────────────
+T = TypeVar("T")
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+
+
+def _run(fn: Callable[[], T], timeout: float = 12) -> T:
+    future = _executor.submit(fn)
+    try:
+        return future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        raise HTTPException(status_code=502, detail="Upstream request timed out")
+
+
+# ── 台股 tick size / bucket ───────────────────────────────────
 def _tick_size(price: float) -> float:
-    """台股最小跳動單位（依股價分級）"""
     if price < 10:
         return 0.01
     elif price < 50:
@@ -50,14 +88,15 @@ def _tick_size(price: float) -> float:
 
 
 def _calc_bucket_size(min_price: float, max_price: float, target: int = 40) -> float:
-    """以 tick size 為單位計算 bucket 寬度，目標約 target 格"""
     tick = _tick_size((min_price + max_price) / 2)
     ticks_per_bucket = max(1, math.ceil((max_price - min_price) / target / tick))
     return ticks_per_bucket * tick
 
+
 VALID_PERIODS = {"5d", "1mo", "3mo", "6mo", "1y"}
 
 
+# ── Routes ────────────────────────────────────────────────────
 @router.get("/search")
 def search(
     q: str = Query(..., min_length=2),
@@ -69,12 +108,13 @@ def search(
 
 @router.get("/{ticker}/price")
 def get_price(ticker: str, _: str = Depends(get_current_user)):
-    cached = _price_cache.get(ticker)
-    if cached and time.time() - cached[0] < PRICE_TTL:
-        return cached[1]
+    cached = _get_cache("price", ticker, PRICE_TTL)
+    if cached:
+        return cached
+    stale = _disk_cache.get("price", {}).get(ticker, {}).get("data")
     try:
         def _fetch():
-            fi = yf.Ticker(ticker, session=_yf_session).fast_info
+            fi = yf.Ticker(ticker).fast_info
             return fi.last_price, fi.previous_close
         price, prev_close = _run(_fetch)
         if price is None or prev_close is None:
@@ -85,15 +125,15 @@ def get_price(ticker: str, _: str = Depends(get_current_user)):
             "price": round(price, 2),
             "change_percent": round(change_percent, 2),
         }
-        _price_cache[ticker] = (time.time(), data)
+        _set_cache("price", ticker, data)
         return data
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to fetch price for {ticker}: {e}")
-        if cached:
+        if stale:
             logger.warning(f"Returning stale price cache for {ticker}")
-            return cached[1]
+            return stale
         raise HTTPException(status_code=502, detail="Failed to fetch stock price")
 
 
@@ -108,33 +148,14 @@ def _translate_summary(text: str) -> str:
         return text
 
 
-import requests_cache
-
-class _CachedSession(requests_cache.CachedSession):
-    def request(self, method, url, **kwargs):
-        kwargs.setdefault("timeout", 10)
-        return super().request(method, url, **kwargs)
-
-_yf_session = _CachedSession(
-    cache_name="/app/data/yf_cache",
-    backend="sqlite",
-    urls_expire_after={
-        "*crumb*": requests_cache.DO_NOT_CACHE,  # crumb 不快取（每次需要新的）
-        "*/v10/finance/quoteSummary/*": 3600,    # info: 1 小時
-        "*/v8/finance/chart/*": 120,             # chart/price: 2 分鐘
-        "*": 300,                                # 其他: 5 分鐘
-    },
-    allowable_codes=[200],
-)
-
-
 @router.get("/{ticker}/info")
 def get_info(ticker: str, _: str = Depends(get_current_user)):
-    cached = _info_cache.get(ticker)
-    if cached and time.time() - cached[0] < INFO_TTL:
-        return cached[1]
+    cached = _get_cache("info", ticker, INFO_TTL)
+    if cached:
+        return cached
+    stale = _disk_cache.get("info", {}).get(ticker, {}).get("data")
     try:
-        info = _run(lambda: yf.Ticker(ticker, session=_yf_session).info)
+        info = _run(lambda: yf.Ticker(ticker).info)
         if not info:
             raise HTTPException(status_code=502, detail="Stock data temporarily unavailable")
         summary_en = info.get("longBusinessSummary", "")
@@ -150,15 +171,15 @@ def get_info(ticker: str, _: str = Depends(get_current_user)):
             "currency": info.get("currency", ""),
             "summary": _run(lambda: _translate_summary(summary_en), timeout=6),
         }
-        _info_cache[ticker] = (time.time(), data)
+        _set_cache("info", ticker, data)
         return data
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to fetch info for {ticker}: {e}")
-        if cached:
+        if stale:
             logger.warning(f"Returning stale info cache for {ticker}")
-            return cached[1]
+            return stale
         raise HTTPException(status_code=502, detail="Failed to fetch stock info")
 
 
@@ -174,7 +195,7 @@ def get_chart(
             detail=f"Invalid period. Must be one of: {', '.join(sorted(VALID_PERIODS))}",
         )
     try:
-        df = _run(lambda: yf.Ticker(ticker, session=_yf_session).history(period=period))
+        df = _run(lambda: yf.Ticker(ticker).history(period=period))
         if df.empty:
             return []
         records = []
@@ -206,7 +227,7 @@ def get_volume_profile(
         )
     try:
         def _fetch_profile():
-            tk = yf.Ticker(ticker, session=_yf_session)
+            tk = yf.Ticker(ticker)
             df = tk.history(period=period)
             price = tk.fast_info.last_price if not df.empty else None
             return df, price

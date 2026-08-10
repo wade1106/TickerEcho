@@ -41,11 +41,13 @@ def send_email(alert: Alert, condition: str, target_price: float, current_price:
 def send_line(alert: Alert, condition: str, target_price: float, current_price: float, subscriber_ids: list[str]) -> None:
     if not LINE_CHANNEL_ACCESS_TOKEN or not subscriber_ids:
         return
-    try:
-        from linebot import LineBotApi
-        from linebot.models import TextSendMessage
-        api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
-        api.multicast(subscriber_ids, TextSendMessage(text=_build_message(alert, condition, target_price, current_price)))
-        logger.info(f"LINE sent: alert={alert.id} {condition} {target_price}")
-    except Exception as e:
-        logger.error(f"LINE failed alert={alert.id}: {e}")
+    from linebot import LineBotApi
+    from linebot.models import TextSendMessage
+    api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
+    msg = TextSendMessage(text=_build_message(alert, condition, target_price, current_price))
+    for uid in subscriber_ids:
+        try:
+            api.push_message(uid, msg)
+            logger.info(f"LINE sent: alert={alert.id} {condition} {target_price} -> {uid}")
+        except Exception as e:
+            logger.error(f"LINE failed alert={alert.id} -> {uid}: {e}")
