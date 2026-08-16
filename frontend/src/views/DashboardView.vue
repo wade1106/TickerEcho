@@ -232,8 +232,9 @@ header {
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 .status-text { font-size: 0.75rem; color: #4a7aad; letter-spacing: 0.5px; }
 
-.calc-link { background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; padding: 0.35rem 0.9rem; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: border-color 0.2s, color 0.2s; }
+.calc-link { background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; padding: 0.35rem 0.9rem; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: border-color 0.2s, color 0.2s, background 0.2s; }
 .calc-link:hover { border-color: #00c8ff; color: #00c8ff; }
+.calc-link.router-link-exact-active { border-color: #00c8ff; color: #00c8ff; background: rgba(0,200,255,0.12); }
 
 .logout-btn { background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; padding: 0.35rem 0.9rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: border-color 0.2s, color 0.2s; }
 .logout-btn:hover { border-color: #00c8ff; color: #00c8ff; }

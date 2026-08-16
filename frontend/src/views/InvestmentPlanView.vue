@@ -11,6 +11,7 @@
         <router-link to="/" class="calc-link">警報首頁</router-link>
         <router-link to="/stock-search" class="calc-link">股票查詢</router-link>
         <router-link to="/calculator" class="calc-link">股市計算機</router-link>
+        <router-link to="/investment-plans" class="calc-link">投資計畫</router-link>
         <button class="logout-btn" @click="logout">登出</button>
       </div>
     </header>
@@ -212,7 +213,7 @@
             <span class="view-label">股票名稱</span>
             <span class="view-val">{{ viewTarget.stock_name || '—' }}</span>
           </div>
-          <div class="view-row full-row">
+          <div class="view-row">
             <span class="view-label">計畫內容</span>
             <pre class="view-content">{{ viewTarget.content }}</pre>
           </div>
@@ -433,8 +434,9 @@ header {
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 .status-text { font-size: 0.75rem; color: #4a7aad; letter-spacing: 0.5px; }
 
-.calc-link { background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; padding: 0.35rem 0.9rem; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: border-color 0.2s, color 0.2s; }
+.calc-link { background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; padding: 0.35rem 0.9rem; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: border-color 0.2s, color 0.2s, background 0.2s; }
 .calc-link:hover { border-color: #00c8ff; color: #00c8ff; }
+.calc-link.router-link-exact-active { border-color: #00c8ff; color: #00c8ff; background: rgba(0,200,255,0.12); }
 
 .logout-btn { background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; padding: 0.35rem 0.9rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: border-color 0.2s, color 0.2s; }
 .logout-btn:hover { border-color: #00c8ff; color: #00c8ff; }
@@ -496,8 +498,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 }
 .clear-x:hover { color: #c9d6e8; }
 
-.field-actions { display: flex; gap: 0.5rem; padding-bottom: 1px; }
-.search-btn { padding: 0.45rem 1.1rem; background: rgba(0,200,255,0.12); border: 1px solid rgba(0,200,255,0.4); color: #00c8ff; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.2s; }
+.field-actions { display: flex; gap: 0.5rem; align-items: flex-end; }
+.search-btn { height: 2.4rem; padding: 0 1.1rem; background: rgba(0,200,255,0.12); border: 1px solid rgba(0,200,255,0.4); color: #00c8ff; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.2s; box-sizing: border-box; }
 .search-btn:hover { background: rgba(0,200,255,0.22); }
 
 /* Plan List */
@@ -596,30 +598,53 @@ tr:hover td { background: rgba(255,255,255,0.015); }
 
 /* View modal */
 .view-grid { display: flex; flex-direction: column; gap: 0.75rem; }
-.view-row { display: flex; gap: 1rem; align-items: baseline; }
-.full-row { flex-direction: column; gap: 0.4rem; }
-.view-label { font-size: 0.75rem; color: #2d4a6e; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; min-width: 72px; }
+.view-row { display: flex; gap: 1rem; align-items: flex-start; }
+.view-label { font-size: 0.75rem; color: #2d4a6e; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; min-width: 72px; padding-top: 0.15rem; }
 .view-val { color: #c9d6e8; font-size: 0.875rem; }
-.view-content { margin: 0; color: #c9d6e8; font-size: 0.875rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; max-height: 360px; overflow-y: auto; }
+.view-content { flex: 1; min-width: 0; margin: 0; color: #c9d6e8; font-size: 0.875rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; max-height: 300px; overflow-y: auto; }
 
-/* iPad & tablet (portrait) */
+/* ── Tablet portrait / iPad (768–900px) ── */
 @media (max-width: 900px) {
   .form-grid { grid-template-columns: 1fr; }
-  .form-modal { width: 90vw; }
+  .form-modal { width: 90vw; max-height: 88vh; }
   .search-fields { flex-wrap: wrap; gap: 0.75rem; }
-  .input-wrap .field-input { width: 100%; }
   .input-wrap { width: 100%; }
-  .field-group { width: 100%; }
+  .input-wrap .field-input { width: 100%; }
+  .field-group { width: 100%; min-width: 0; }
+  .field-actions { width: 100%; }
+  .search-btn { width: 100%; }
+  /* 隱藏次要欄位：投資人 */
+  table th:nth-child(4), table td:nth-child(4) { display: none; }
+  /* 縮小操作按鈕 */
+  .view-btn, .edit-btn, .del-btn { padding: 0.22rem 0.45rem; font-size: 0.72rem; margin-right: 0.25rem; }
+  /* 檢視 modal */
+  .form-modal { width: 92vw; }
 }
 
-/* Mobile */
+/* ── Mobile (≤640px) ── */
 @media (max-width: 640px) {
-  header { padding: 0.6rem 1rem; flex-wrap: wrap; gap: 0.5rem; }
-  .status-text { display: none; }
-  .header-right { width: 100%; border-top: 1px solid #111f35; padding-top: 0.5rem; gap: 0.5rem; }
-  main { padding: 0.75rem; }
+  header { padding: 0.6rem 0.75rem; flex-wrap: wrap; gap: 0.4rem; }
+  .brand-name { font-size: 0.9rem; }
+  .status-dot, .status-text { display: none; }
+  .header-right { width: 100%; border-top: 1px solid #111f35; padding-top: 0.45rem; gap: 0.35rem; flex-wrap: wrap; }
+  .calc-link { font-size: 0.72rem; padding: 0.26rem 0.55rem; }
+  .logout-btn { font-size: 0.72rem; padding: 0.26rem 0.55rem; }
+  main { padding: 0.6rem; }
+  .search-panel { padding: 0.75rem; }
+  .plan-list { padding: 0.75rem; }
   .search-fields { flex-direction: column; align-items: stretch; }
-  .form-modal { width: 95vw; }
-  table { min-width: 700px; }
+  .form-modal { width: 96vw; padding: 1.25rem 1rem; }
+  /* 表格水平捲動：隱藏即時股價與投資人 */
+  table { min-width: 520px; }
+  table th:nth-child(6), table td:nth-child(6) { display: none; } /* 即時股價 */
+  /* 縮小操作按鈕 */
+  .view-btn, .edit-btn, .del-btn { padding: 0.2rem 0.38rem; font-size: 0.7rem; margin-right: 0.2rem; }
+  /* 分頁簡化 */
+  .pagination { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+  .pagination-right { display: none; }
+  /* 檢視 modal 欄位改直排 */
+  .view-row { flex-direction: column; gap: 0.2rem; }
+  .view-label { min-width: unset; padding-top: 0; }
+  .view-content { max-height: 200px; }
 }
 </style>
