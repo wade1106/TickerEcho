@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from config import check_notification_channels
 from database import init_db
-from routers import alerts, auth, line_webhook, stocks
+from routers import alerts, auth, investment_plans, line_webhook, stocks
 from scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +39,7 @@ app.include_router(auth.router)
 app.include_router(alerts.router)
 app.include_router(stocks.router)
 app.include_router(line_webhook.router)
+app.include_router(investment_plans.router)
 
 # Serve Vue static files (must be last)
 static_dir = Path(__file__).parent / "static"

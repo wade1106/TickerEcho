@@ -10,6 +10,7 @@
         <span class="status-text">系統運行中</span>
         <router-link to="/stock-search" class="calc-link">股票查詢</router-link>
         <router-link to="/calculator" class="calc-link">股市計算機</router-link>
+        <router-link to="/investment-plans" class="calc-link">投資計畫</router-link>
         <button class="logout-btn" @click="logout">登出</button>
       </div>
     </header>

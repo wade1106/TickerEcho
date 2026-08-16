@@ -8,9 +8,13 @@ _**User (2026-08-08 02:36:18Z)**_
 
 (Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& d:\Github\wade1106\TickerEcho\backend\.venv\Scripts\Activate.ps1)
 
+---
+
 _**User (2026-08-08 02:36:19Z)**_
 
 [Request interrupted by user]
+
+---
 
 _**User (2026-08-08 02:36:59Z)**_
 
@@ -997,6 +1001,8 @@ dir D:\Github\wade1106\TickerEcho\data\
 _**User (2026-08-08 03:14:41Z)**_
 
 這個圖只有選一年的時候圖中才不會有空著的部分，有辦法調整嗎
+
+---
 
 _**User (2026-08-08 03:14:41Z)**_
 

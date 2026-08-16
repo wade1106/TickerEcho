@@ -96,6 +96,11 @@ def _calc_bucket_size(min_price: float, max_price: float, target: int = 40) -> f
 VALID_PERIODS = {"5d", "1mo", "3mo", "6mo", "1y"}
 
 
+def _normalize_ticker(ticker: str) -> str:
+    """Auto-append .TW for pure numeric Taiwan stock codes (e.g. 2330 -> 2330.TW)."""
+    return ticker + ".TW" if ticker.isdigit() else ticker
+
+
 # ── Routes ────────────────────────────────────────────────────
 @router.get("/search")
 def search(
@@ -108,6 +113,7 @@ def search(
 
 @router.get("/{ticker}/price")
 def get_price(ticker: str, _: str = Depends(get_current_user)):
+    ticker = _normalize_ticker(ticker)
     cached = _get_cache("price", ticker, PRICE_TTL)
     if cached:
         return cached
@@ -150,6 +156,7 @@ def _translate_summary(text: str) -> str:
 
 @router.get("/{ticker}/info")
 def get_info(ticker: str, _: str = Depends(get_current_user)):
+    ticker = _normalize_ticker(ticker)
     cached = _get_cache("info", ticker, INFO_TTL)
     if cached:
         return cached
@@ -189,6 +196,7 @@ def get_chart(
     period: str = Query(default="3mo"),
     _: str = Depends(get_current_user),
 ):
+    ticker = _normalize_ticker(ticker)
     if period not in VALID_PERIODS:
         raise HTTPException(
             status_code=422,
@@ -220,6 +228,7 @@ def get_volume_profile(
     period: str = Query(default="3mo"),
     _: str = Depends(get_current_user),
 ):
+    ticker = _normalize_ticker(ticker)
     if period not in VALID_PERIODS:
         raise HTTPException(
             status_code=422,
