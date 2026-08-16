@@ -98,10 +98,11 @@
                     <span class="price-na">—</span>
                   </template>
                   <template v-else>
-                    <span class="price-val">{{ prices[plan.ticker].price.toLocaleString() }}</span>
-                    <span :class="['change-pct', prices[plan.ticker].change_percent >= 0 ? 'up' : 'down']">
+                    <span v-if="prices[plan.ticker]?.price != null" class="price-val">{{ prices[plan.ticker].price.toLocaleString() }}</span>
+                    <span v-if="prices[plan.ticker]?.change_percent != null" :class="['change-pct', prices[plan.ticker].change_percent >= 0 ? 'up' : 'down']">
                       {{ prices[plan.ticker].change_percent >= 0 ? '+' : '' }}{{ prices[plan.ticker].change_percent.toFixed(2) }}%
                     </span>
+                    <span v-if="prices[plan.ticker]?.price == null" class="price-na">—</span>
                   </template>
                 </td>
                 <td class="content-cell" :title="plan.content">
