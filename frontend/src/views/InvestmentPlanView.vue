@@ -585,12 +585,12 @@ tr:hover td { background: rgba(255,255,255,0.015); }
 .form-field.full-width { grid-column: 1 / -1; }
 .form-field label { font-size: 0.78rem; color: #4a7aad; }
 .required { color: #ff4d6d; }
+/* Form inputs always fill their cell */
+.form-field .field-input { width: 100%; box-sizing: border-box; }
 .field-textarea { padding: 0.5rem 0.75rem; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; font-size: 0.82rem; color: #c9d6e8; outline: none; resize: vertical; font-family: inherit; transition: border-color 0.2s; width: 100%; box-sizing: border-box; }
 .field-textarea::placeholder { color: #2d4a6e; }
 .field-textarea:focus { border-color: #00c8ff; }
 .content-textarea { min-height: 220px; font-size: 0.9rem; line-height: 1.6; }
-/* Form modal date input fills its grid cell */
-.form-date-input { width: 100%; }
 .content-field label { font-size: 0.82rem; font-weight: 600; color: #00c8ff; }
 .form-error { color: #ff4d6d; font-size: 0.8rem; margin: 0.5rem 0 0; }
 
@@ -602,15 +602,23 @@ tr:hover td { background: rgba(255,255,255,0.015); }
 .view-val { color: #c9d6e8; font-size: 0.875rem; }
 .view-content { margin: 0; color: #c9d6e8; font-size: 0.875rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; max-height: 360px; overflow-y: auto; }
 
+/* iPad & tablet (portrait) */
+@media (max-width: 900px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .form-modal { width: 90vw; }
+  .search-fields { flex-wrap: wrap; gap: 0.75rem; }
+  .input-wrap .field-input { width: 100%; }
+  .input-wrap { width: 100%; }
+  .field-group { width: 100%; }
+}
+
+/* Mobile */
 @media (max-width: 640px) {
   header { padding: 0.6rem 1rem; flex-wrap: wrap; gap: 0.5rem; }
   .status-text { display: none; }
   .header-right { width: 100%; border-top: 1px solid #111f35; padding-top: 0.5rem; gap: 0.5rem; }
   main { padding: 0.75rem; }
   .search-fields { flex-direction: column; align-items: stretch; }
-  .field-input { width: 100%; }
-  .field-group { width: 100%; }
-  .form-grid { grid-template-columns: 1fr; }
   .form-modal { width: 95vw; }
   table { min-width: 700px; }
 }
