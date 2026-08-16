@@ -8,6 +8,7 @@
       <div class="header-right">
         <span class="status-dot"></span>
         <span class="status-text">系統運行中</span>
+        <router-link to="/" class="calc-link">警報首頁</router-link>
         <router-link to="/stock-search" class="calc-link">股票查詢</router-link>
         <router-link to="/calculator" class="calc-link">股市計算機</router-link>
         <router-link to="/investment-plans" class="calc-link">投資計畫</router-link>

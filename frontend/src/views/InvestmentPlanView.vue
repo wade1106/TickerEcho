@@ -215,7 +215,7 @@
           </div>
           <div class="view-row">
             <span class="view-label">計畫內容</span>
-            <pre class="view-content">{{ viewTarget.content }}</pre>
+            <span class="view-val view-content">{{ viewTarget.content }}</span>
           </div>
         </div>
         <div class="modal-footer">
@@ -470,7 +470,7 @@ main { max-width: 1600px; margin: 0 auto; padding: 1.5rem 2rem; display: flex; f
 }
 
 /* Standalone field-input (form modal) keeps its own border */
-.field-input { padding: 0 0.75rem; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; font-size: 0.8rem; color: #c9d6e8; outline: none; width: 200px; transition: border-color 0.2s; box-sizing: border-box; height: 2.4rem; line-height: 2.4rem; -webkit-appearance: none; appearance: none; }
+.field-input { padding: 0 0.75rem; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; font-size: 0.8rem; color: #c9d6e8; outline: none; width: 200px; transition: border-color 0.2s; box-sizing: border-box; height: 2.4rem; line-height: 2.4rem; -webkit-appearance: none; appearance: none; text-align: left; }
 .field-input::placeholder { color: #2d4a6e; }
 .field-input:focus { border-color: #00c8ff; }
 
@@ -601,7 +601,7 @@ tr:hover td { background: rgba(255,255,255,0.015); }
 .view-row { display: flex; gap: 1rem; align-items: flex-start; }
 .view-label { font-size: 0.75rem; color: #2d4a6e; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; min-width: 72px; padding-top: 0.15rem; }
 .view-val { color: #c9d6e8; font-size: 0.875rem; }
-.view-content { flex: 1; min-width: 0; margin: 0; color: #c9d6e8; font-size: 0.875rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; max-height: 300px; overflow-y: auto; }
+.view-content { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; line-height: 1.7; }
 
 /* ── Tablet portrait / iPad (768–900px) ── */
 @media (max-width: 900px) {
