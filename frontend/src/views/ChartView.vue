@@ -185,8 +185,11 @@ async function loadProfile() {
 
 async function loadStockName() {
   try {
-    const res = await client.get('/stocks/search', { params: { q: ticker.replace('.TW', '').replace('.TWO', '') } })
-    const match = res.data.find((s: any) => s.ticker === ticker)
+    const q = ticker.replace('.TW', '').replace('.TWO', '')
+    const res = await client.get('/stocks/search', { params: { q } })
+    const match = res.data.find((s: any) =>
+      s.ticker === ticker || s.ticker === ticker + '.TW' || s.ticker === ticker + '.TWO'
+    )
     if (match) stockName.value = match.name
   } catch {}
 }
