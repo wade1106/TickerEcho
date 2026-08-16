@@ -464,11 +464,11 @@ main { max-width: 1600px; margin: 0 auto; padding: 1.5rem 2rem; display: flex; f
   background: transparent;
   outline: none;
   width: 170px;
-  padding: 0.45rem 0.25rem 0.45rem 0.75rem;
+  padding: 0 0.25rem 0 0.75rem;
 }
 
 /* Standalone field-input (form modal) keeps its own border */
-.field-input { padding: 0.45rem 0.75rem; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; font-size: 0.8rem; color: #c9d6e8; outline: none; width: 200px; transition: border-color 0.2s; box-sizing: border-box; }
+.field-input { padding: 0 0.75rem; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; font-size: 0.8rem; color: #c9d6e8; outline: none; width: 200px; transition: border-color 0.2s; box-sizing: border-box; height: 2.4rem; line-height: 2.4rem; -webkit-appearance: none; appearance: none; }
 .field-input::placeholder { color: #2d4a6e; }
 .field-input:focus { border-color: #00c8ff; }
 
