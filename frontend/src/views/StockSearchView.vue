@@ -502,6 +502,11 @@ main {
 /* RWD */
 @media (max-width: 860px) {
   .info-layout { grid-template-columns: 1fr; }
+  header { flex-wrap: wrap; gap: 0.4rem; }
+  .status-text { display: none; }
+  .header-right { flex-wrap: wrap; gap: 0.4rem; }
+  .nav-link { font-size: 0.75rem; padding: 0.28rem 0.6rem; }
+  .logout-btn { font-size: 0.75rem; padding: 0.28rem 0.6rem; }
 }
 
 @media (max-width: 640px) {

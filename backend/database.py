@@ -28,8 +28,11 @@ def _migrate_investment_plan() -> None:
     """Add urgency / status columns to investment_plan if they don't exist yet."""
     from sqlalchemy import text
     new_columns = [
-        ("urgency", "TEXT NOT NULL DEFAULT 'note'"),
-        ("status",  "TEXT NOT NULL DEFAULT 'draft'"),
+        ("urgency",          "TEXT NOT NULL DEFAULT 'note'"),
+        ("status",           "TEXT NOT NULL DEFAULT 'draft'"),
+        ("trigger_above",    "REAL"),
+        ("trigger_below",    "REAL"),
+        ("linked_alert_id",  "INTEGER"),
     ]
     with engine.connect() as conn:
         for col, definition in new_columns:

@@ -47,8 +47,8 @@
             <select v-model="searchUrgency" class="field-select" @change="doSearch">
               <option value="">全部</option>
               <option value="immediate">立即</option>
-              <option value="waiting">等待</option>
-              <option value="watching">觀察</option>
+              <option value="waiting">待觸發</option>
+              <option value="watching">評估中</option>
               <option value="note">筆記</option>
             </select>
           </div>
@@ -127,6 +127,14 @@
                       {{ prices[plan.ticker].change_percent >= 0 ? '+' : '' }}{{ prices[plan.ticker].change_percent.toFixed(2) }}%
                     </span>
                     <span v-if="prices[plan.ticker]?.price == null" class="price-na">—</span>
+                    <template v-if="prices[plan.ticker]?.price != null">
+                      <span v-if="plan.trigger_above" :class="['trigger-dist', prices[plan.ticker].price >= plan.trigger_above ? 'triggered' : 'dist-above']">
+                        ↑{{ triggerDist(prices[plan.ticker].price, plan.trigger_above) }}
+                      </span>
+                      <span v-if="plan.trigger_below" :class="['trigger-dist', prices[plan.ticker].price <= plan.trigger_below ? 'triggered' : 'dist-below']">
+                        ↓{{ triggerDist(prices[plan.ticker].price, plan.trigger_below) }}
+                      </span>
+                    </template>
                   </template>
                 </td>
                 <td class="badge-cell">
@@ -206,8 +214,8 @@
             <label>緊急度</label>
             <select v-model="form.urgency" class="field-input field-select-form">
               <option value="immediate">立即</option>
-              <option value="waiting">等待</option>
-              <option value="watching">觀察</option>
+              <option value="waiting">待觸發</option>
+              <option value="watching">評估中</option>
               <option value="note">筆記</option>
             </select>
           </div>
@@ -220,6 +228,29 @@
               <option value="done">已完成</option>
               <option value="cancelled">放棄</option>
             </select>
+          </div>
+          <div class="form-field full-width trigger-section">
+            <label class="trigger-title">觸發條件（連動警報）</label>
+            <div class="trigger-row">
+              <div class="trigger-field">
+                <span class="trigger-label">高於</span>
+                <input type="number" v-model.number="form.trigger_above" class="field-input trigger-input" placeholder="價格（元）" min="0" step="0.01" />
+                <span class="trigger-unit">元觸發</span>
+              </div>
+              <div class="trigger-field">
+                <span class="trigger-label">低於</span>
+                <input type="number" v-model.number="form.trigger_below" class="field-input trigger-input" placeholder="價格（元）" min="0" step="0.01" />
+                <span class="trigger-unit">元觸發</span>
+              </div>
+            </div>
+            <label v-if="!editingPlan && (form.trigger_above || form.trigger_below)" class="create-alert-row">
+              <input type="checkbox" v-model="form.createAlert" class="alert-checkbox" />
+              <span class="create-alert-label">同時在警報系統建立對應警報</span>
+            </label>
+            <div v-if="editingPlan && form.linked_alert_id" class="linked-alert-info">
+              已連動警報 #{{ form.linked_alert_id }}
+              <router-link to="/" class="alert-link-btn">查看警報 →</router-link>
+            </div>
           </div>
           <div class="form-field full-width content-field">
             <label>計畫內容 <span class="required">*</span></label>
@@ -268,6 +299,20 @@
           <div class="view-row">
             <span class="view-label">狀態</span>
             <span :class="['status-badge', `status-${viewTarget.status}`]">{{ statusLabel(viewTarget.status) }}</span>
+          </div>
+          <div class="view-row" v-if="viewTarget.trigger_above || viewTarget.trigger_below">
+            <span class="view-label">觸發條件</span>
+            <span class="view-val">
+              <span v-if="viewTarget.trigger_above" class="trigger-tag trigger-tag-above">高於 {{ viewTarget.trigger_above.toLocaleString() }} 元</span>
+              <span v-if="viewTarget.trigger_below" class="trigger-tag trigger-tag-below">低於 {{ viewTarget.trigger_below.toLocaleString() }} 元</span>
+            </span>
+          </div>
+          <div class="view-row" v-if="viewTarget.linked_alert_id">
+            <span class="view-label">連動警報</span>
+            <span class="view-val">
+              警報 #{{ viewTarget.linked_alert_id }}
+              <router-link to="/" class="alert-link-btn" @click="viewTarget = null">前往查看 →</router-link>
+            </span>
           </div>
           <div class="view-row">
             <span class="view-label">計畫內容</span>
@@ -335,6 +380,10 @@ const form = ref({
   content: '',
   urgency: 'note',
   status: 'draft',
+  trigger_above: null as number | null,
+  trigger_below: null as number | null,
+  linked_alert_id: null as number | null,
+  createAlert: false,
 })
 
 const deleteTarget = ref<any>(null)
@@ -404,8 +453,8 @@ function doSearch() {
 
 const URGENCY_LABEL: Record<string, string> = {
   immediate: '立即',
-  waiting: '等待',
-  watching: '觀察',
+  waiting: '待觸發',
+  watching: '評估中',
   note: '筆記',
 }
 const STATUS_LABEL: Record<string, string> = {
@@ -417,6 +466,11 @@ const STATUS_LABEL: Record<string, string> = {
 }
 function urgencyLabel(v: string) { return URGENCY_LABEL[v] ?? v }
 function statusLabel(v: string)  { return STATUS_LABEL[v]  ?? v }
+
+function triggerDist(price: number, target: number): string {
+  const pct = ((target - price) / price) * 100
+  return (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%'
+}
 
 function clearField(field: 'date' | 'stock' | 'investor') {
   if (field === 'date') searchDate.value = ''
@@ -438,7 +492,7 @@ function onPageSizeChange() {
 
 function openCreate() {
   editingPlan.value = null
-  form.value = { plan_date: '', plan_name: '', investor: '', ticker: '', stock_name: '', content: '', urgency: 'note', status: 'draft' }
+  form.value = { plan_date: '', plan_name: '', investor: '', ticker: '', stock_name: '', content: '', urgency: 'note', status: 'draft', trigger_above: null, trigger_below: null, linked_alert_id: null, createAlert: false }
   formError.value = ''
   showForm.value = true
 }
@@ -454,6 +508,10 @@ function openEdit(plan: any) {
     content: plan.content,
     urgency: plan.urgency ?? 'note',
     status: plan.status ?? 'draft',
+    trigger_above: plan.trigger_above ?? null,
+    trigger_below: plan.trigger_below ?? null,
+    linked_alert_id: plan.linked_alert_id ?? null,
+    createAlert: false,
   }
   formError.value = ''
   showForm.value = true
@@ -467,10 +525,24 @@ async function submitForm() {
   submitting.value = true
   formError.value = ''
   try {
+    const { createAlert, ...payload } = form.value
     if (editingPlan.value) {
-      await client.put(`/investment-plans/${editingPlan.value.id}`, form.value)
+      await client.put(`/investment-plans/${editingPlan.value.id}`, payload)
     } else {
-      await client.post('/investment-plans', form.value)
+      const planRes = await client.post('/investment-plans', payload)
+      if (createAlert && (payload.trigger_above || payload.trigger_below)) {
+        try {
+          const alertRes = await client.post('/alerts', {
+            ticker: payload.ticker,
+            name: payload.plan_name,
+            above_price: payload.trigger_above ?? undefined,
+            below_price: payload.trigger_below ?? undefined,
+          })
+          await client.put(`/investment-plans/${planRes.data.id}`, { linked_alert_id: alertRes.data.id })
+        } catch {
+          // 警報建立失敗不阻擋計畫儲存
+        }
+      }
     }
     showForm.value = false
     await loadPlans()
@@ -708,6 +780,34 @@ tr:hover td { background: rgba(255,255,255,0.015); }
 .status-done      { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.4); color: #4ade80; }
 .status-cancelled { background: rgba(255,77,109,0.08); border-color: rgba(255,77,109,0.25); color: #ff4d6d; opacity: 0.65; }
 
+/* Trigger condition section */
+.trigger-section { border: 1px solid #1a2f4a; border-radius: 8px; padding: 0.9rem 1rem; background: rgba(0,200,255,0.03); }
+.trigger-title { font-size: 0.78rem; font-weight: 600; color: #00c8ff; margin-bottom: 0.6rem; display: block; }
+.trigger-row { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.trigger-field { display: flex; align-items: center; gap: 0.5rem; }
+.trigger-label { font-size: 0.78rem; color: #4a7aad; white-space: nowrap; }
+.trigger-input { width: 130px !important; }
+.trigger-unit { font-size: 0.78rem; color: #4a7aad; white-space: nowrap; }
+
+.create-alert-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; cursor: pointer; }
+.alert-checkbox { accent-color: #00c8ff; width: 14px; height: 14px; cursor: pointer; }
+.create-alert-label { font-size: 0.8rem; color: #c9d6e8; }
+
+.linked-alert-info { margin-top: 0.75rem; font-size: 0.8rem; color: #4a7aad; display: flex; align-items: center; gap: 0.75rem; }
+.alert-link-btn { color: #00c8ff; text-decoration: none; font-size: 0.78rem; }
+.alert-link-btn:hover { text-decoration: underline; }
+
+/* Trigger distance badge in price cell */
+.trigger-dist { display: block; font-size: 0.7rem; font-family: 'Courier New', monospace; font-weight: 600; margin-top: 1px; }
+.dist-above { color: #f59e0b; }
+.dist-below { color: #60a5fa; }
+.triggered { color: #ff4d6d; animation: pulse 1.5s infinite; }
+
+/* Trigger tags in view modal */
+.trigger-tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.78rem; font-weight: 600; margin-right: 0.5rem; }
+.trigger-tag-above { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); color: #f59e0b; }
+.trigger-tag-below { background: rgba(96,165,250,0.15); border: 1px solid rgba(96,165,250,0.4); color: #60a5fa; }
+
 /* View modal */
 .view-grid { display: flex; flex-direction: column; gap: 0.75rem; }
 .view-row { display: flex; gap: 1rem; align-items: flex-start; }
@@ -723,6 +823,7 @@ tr:hover td { background: rgba(255,255,255,0.015); }
   .input-wrap { width: 100%; }
   .input-wrap .field-input { width: 100%; }
   .field-group { width: 100%; min-width: 0; }
+  .field-select { width: 100%; }
   .field-actions { width: 100%; }
   .search-btn { width: 100%; }
   /* 隱藏次要欄位：投資人、狀態 */
@@ -732,6 +833,10 @@ tr:hover td { background: rgba(255,255,255,0.015); }
   .view-btn, .edit-btn, .del-btn { padding: 0.22rem 0.45rem; font-size: 0.72rem; margin-right: 0.25rem; }
   /* 檢視 modal */
   .form-modal { width: 92vw; }
+  /* 觸發條件區塊 */
+  .trigger-row { flex-direction: column; gap: 0.6rem; }
+  .trigger-field { width: 100%; }
+  .trigger-input { width: 100% !important; }
 }
 
 /* ── Mobile (≤640px) ── */
@@ -757,6 +862,11 @@ tr:hover td { background: rgba(255,255,255,0.015); }
   /* 分頁簡化 */
   .pagination { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
   .pagination-right { display: none; }
+  /* 觸發條件區塊 */
+  .trigger-section { padding: 0.7rem 0.75rem; }
+  .trigger-row { flex-direction: column; gap: 0.6rem; }
+  .trigger-field { width: 100%; }
+  .trigger-input { width: 100% !important; }
   /* 檢視 modal 欄位改直排 */
   .view-row { flex-direction: column; gap: 0.2rem; }
   .view-label { min-width: unset; padding-top: 0; }

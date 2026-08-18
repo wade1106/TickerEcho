@@ -607,6 +607,12 @@ tr:hover td { background: rgba(255, 255, 255, 0.015); }
 }
 
 @media (max-width: 900px) {
+  header { flex-wrap: wrap; gap: 0.4rem; }
+  .status-text { display: none; }
+  .header-right { flex-wrap: wrap; gap: 0.4rem; }
+  .nav-link { font-size: 0.75rem; padding: 0.28rem 0.6rem; }
+  .logout-btn { font-size: 0.75rem; padding: 0.28rem 0.6rem; }
+
   .calc-layout { flex-direction: column; }
   .params-card { width: 100%; }
 
