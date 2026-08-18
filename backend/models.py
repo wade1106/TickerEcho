@@ -42,4 +42,8 @@ class InvestmentPlan(SQLModel, table=True):
     ticker: str = Field(nullable=False, index=True)
     stock_name: str = Field(default="", nullable=False)
     content: str = Field(default="", nullable=False)
+    # immediate / waiting / watching / note
+    urgency: str = Field(default="note", nullable=False)
+    # draft / pending / active / done / cancelled
+    status: str = Field(default="draft", nullable=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)

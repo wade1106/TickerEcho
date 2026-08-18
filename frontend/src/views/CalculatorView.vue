@@ -1,12 +1,18 @@
 <template>
   <div class="calc-page">
     <header>
-      <router-link to="/" class="back">← 返回</router-link>
-      <div class="title-block">
-        <span class="page-title">股市計算機</span>
+      <div class="brand">
+        <span class="brand-icon">◈</span>
+        <span class="brand-name">TickerEcho</span>
       </div>
-      <div class="header-nav">
+      <div class="header-right">
+        <span class="status-dot"></span>
+        <span class="status-text">系統運行中</span>
+        <router-link to="/" class="nav-link">警報首頁</router-link>
         <router-link to="/stock-search" class="nav-link">股票查詢</router-link>
+        <router-link to="/calculator" class="nav-link">股市計算機</router-link>
+        <router-link to="/investment-plans" class="nav-link">投資計畫</router-link>
+        <button class="logout-btn" @click="logout">登出</button>
       </div>
     </header>
 
@@ -138,6 +144,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const auth = useAuthStore()
+function logout() { auth.logout(); router.push('/login') }
 
 const stockType = ref<'stock' | 'daytrade' | 'etf'>('stock')
 const buyPriceStr = ref('')
@@ -280,27 +292,20 @@ header {
   border-bottom: 1px solid #1e3a5f;
   padding: 0.75rem 2rem;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 1.25rem;
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
-.back {
-  color: #4a7aad;
-  text-decoration: none;
-  font-size: 0.85rem;
-  transition: color 0.2s;
-  white-space: nowrap;
-}
-.back:hover { color: #00c8ff; }
-
-.header-nav {
-  margin-left: auto;
-  display: flex;
-  gap: 0.5rem;
-}
+.brand { display: flex; align-items: center; gap: 0.5rem; }
+.brand-icon { color: #00c8ff; font-size: 1.2rem; text-shadow: 0 0 10px rgba(0,200,255,0.6); }
+.brand-name { font-size: 1rem; font-weight: 700; letter-spacing: 2px; color: #e2eeff; }
+.header-right { display: flex; align-items: center; gap: 0.75rem; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.7); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.status-text { font-size: 0.75rem; color: #4a7aad; letter-spacing: 0.5px; }
 
 .nav-link {
   background: transparent;
@@ -310,16 +315,13 @@ header {
   border-radius: 4px;
   font-size: 0.8rem;
   text-decoration: none;
-  transition: border-color 0.2s, color 0.2s;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
 .nav-link:hover { border-color: #00c8ff; color: #00c8ff; }
+.nav-link.router-link-exact-active { border-color: #00c8ff; color: #00c8ff; background: rgba(0,200,255,0.12); }
 
-.page-title {
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #00c8ff;
-}
+.logout-btn { background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; padding: 0.35rem 0.9rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: border-color 0.2s, color 0.2s; }
+.logout-btn:hover { border-color: #00c8ff; color: #00c8ff; }
 
 main {
   max-width: 1600px;
@@ -615,9 +617,12 @@ tr:hover td { background: rgba(255, 255, 255, 0.015); }
 }
 
 @media (max-width: 640px) {
-  header { padding: 0.6rem 0.75rem; gap: 0.5rem; flex-wrap: wrap; }
-  .header-nav { width: 100%; border-top: 1px solid #111f35; padding-top: 0.5rem; }
-  .nav-link { font-size: 0.75rem; padding: 0.28rem 0.65rem; }
+  header { padding: 0.6rem 0.75rem; flex-wrap: wrap; gap: 0.4rem; }
+  .brand-name { font-size: 0.9rem; }
+  .status-dot, .status-text { display: none; }
+  .header-right { width: 100%; border-top: 1px solid #111f35; padding-top: 0.45rem; gap: 0.35rem; flex-wrap: wrap; }
+  .nav-link { font-size: 0.72rem; padding: 0.26rem 0.55rem; }
+  .logout-btn { font-size: 0.72rem; padding: 0.26rem 0.55rem; }
   main { padding: 0.75rem; }
 
   /* 參數卡改單欄 */

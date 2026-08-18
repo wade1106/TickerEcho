@@ -21,6 +21,23 @@ engine = create_engine(_db_url, connect_args={"check_same_thread": False})
 
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
+    _migrate_investment_plan()
+
+
+def _migrate_investment_plan() -> None:
+    """Add urgency / status columns to investment_plan if they don't exist yet."""
+    from sqlalchemy import text
+    new_columns = [
+        ("urgency", "TEXT NOT NULL DEFAULT 'note'"),
+        ("status",  "TEXT NOT NULL DEFAULT 'draft'"),
+    ]
+    with engine.connect() as conn:
+        for col, definition in new_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE investment_plan ADD COLUMN {col} {definition}"))
+                conn.commit()
+            except Exception:
+                pass  # column already exists
 
 
 def get_session():

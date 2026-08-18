@@ -42,6 +42,27 @@
               <button v-if="searchInvestor" class="clear-x" @click="clearField('investor')" type="button" tabindex="-1">×</button>
             </div>
           </div>
+          <div class="field-group">
+            <label>緊急度</label>
+            <select v-model="searchUrgency" class="field-select" @change="doSearch">
+              <option value="">全部</option>
+              <option value="immediate">立即</option>
+              <option value="waiting">等待</option>
+              <option value="watching">觀察</option>
+              <option value="note">筆記</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>狀態</label>
+            <select v-model="searchStatus" class="field-select" @change="doSearch">
+              <option value="">全部</option>
+              <option value="draft">草稿</option>
+              <option value="pending">等待觸發</option>
+              <option value="active">執行中</option>
+              <option value="done">已完成</option>
+              <option value="cancelled">放棄</option>
+            </select>
+          </div>
           <div class="field-actions">
             <button class="search-btn" @click="doSearch">搜尋</button>
           </div>
@@ -75,6 +96,8 @@
                 <th>投資人</th>
                 <th>股票標的</th>
                 <th>即時股價</th>
+                <th class="col-badge">緊急度</th>
+                <th class="col-badge">狀態</th>
                 <th>計畫內容</th>
                 <th class="col-action">操作</th>
               </tr>
@@ -105,6 +128,12 @@
                     </span>
                     <span v-if="prices[plan.ticker]?.price == null" class="price-na">—</span>
                   </template>
+                </td>
+                <td class="badge-cell">
+                  <span :class="['urgency-badge', `urgency-${plan.urgency}`]">{{ urgencyLabel(plan.urgency) }}</span>
+                </td>
+                <td class="badge-cell">
+                  <span :class="['status-badge', `status-${plan.status}`]">{{ statusLabel(plan.status) }}</span>
                 </td>
                 <td class="content-cell" :title="plan.content">
                   {{ plan.content.length > 25 ? plan.content.slice(0, 25) + '…' : plan.content }}
@@ -173,6 +202,25 @@
             <label>股票名稱</label>
             <input type="text" v-model="form.stock_name" class="field-input" placeholder="例: 台積電" />
           </div>
+          <div class="form-field">
+            <label>緊急度</label>
+            <select v-model="form.urgency" class="field-input field-select-form">
+              <option value="immediate">立即</option>
+              <option value="waiting">等待</option>
+              <option value="watching">觀察</option>
+              <option value="note">筆記</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>狀態</label>
+            <select v-model="form.status" class="field-input field-select-form">
+              <option value="draft">草稿</option>
+              <option value="pending">等待觸發</option>
+              <option value="active">執行中</option>
+              <option value="done">已完成</option>
+              <option value="cancelled">放棄</option>
+            </select>
+          </div>
           <div class="form-field full-width content-field">
             <label>計畫內容 <span class="required">*</span></label>
             <textarea v-model="form.content" class="field-textarea content-textarea" placeholder="輸入投資計畫內容..." rows="10"></textarea>
@@ -212,6 +260,14 @@
           <div class="view-row">
             <span class="view-label">股票名稱</span>
             <span class="view-val">{{ viewTarget.stock_name || '—' }}</span>
+          </div>
+          <div class="view-row">
+            <span class="view-label">緊急度</span>
+            <span :class="['urgency-badge', `urgency-${viewTarget.urgency}`]">{{ urgencyLabel(viewTarget.urgency) }}</span>
+          </div>
+          <div class="view-row">
+            <span class="view-label">狀態</span>
+            <span :class="['status-badge', `status-${viewTarget.status}`]">{{ statusLabel(viewTarget.status) }}</span>
           </div>
           <div class="view-row">
             <span class="view-label">計畫內容</span>
@@ -258,9 +314,13 @@ const pageSize = ref(10)
 const searchDate = ref('')
 const searchStock = ref('')
 const searchInvestor = ref('')
+const searchUrgency = ref('')
+const searchStatus = ref('')
 const appliedDate = ref('')
 const appliedStock = ref('')
 const appliedInvestor = ref('')
+const appliedUrgency = ref('')
+const appliedStatus = ref('')
 
 const showForm = ref(false)
 const editingPlan = ref<any>(null)
@@ -273,6 +333,8 @@ const form = ref({
   ticker: '',
   stock_name: '',
   content: '',
+  urgency: 'note',
+  status: 'draft',
 })
 
 const deleteTarget = ref<any>(null)
@@ -299,6 +361,8 @@ async function loadPlans() {
     if (appliedDate.value) params.plan_date = appliedDate.value
     if (appliedStock.value) params.stock = appliedStock.value
     if (appliedInvestor.value) params.investor = appliedInvestor.value
+    if (appliedUrgency.value) params.urgency = appliedUrgency.value
+    if (appliedStatus.value) params.status = appliedStatus.value
 
     const res = await client.get('/investment-plans', { params })
     plans.value = res.data.items
@@ -332,9 +396,27 @@ function doSearch() {
   appliedDate.value = searchDate.value
   appliedStock.value = searchStock.value
   appliedInvestor.value = searchInvestor.value
+  appliedUrgency.value = searchUrgency.value
+  appliedStatus.value = searchStatus.value
   currentPage.value = 1
   loadPlans()
 }
+
+const URGENCY_LABEL: Record<string, string> = {
+  immediate: '立即',
+  waiting: '等待',
+  watching: '觀察',
+  note: '筆記',
+}
+const STATUS_LABEL: Record<string, string> = {
+  draft: '草稿',
+  pending: '等待觸發',
+  active: '執行中',
+  done: '已完成',
+  cancelled: '放棄',
+}
+function urgencyLabel(v: string) { return URGENCY_LABEL[v] ?? v }
+function statusLabel(v: string)  { return STATUS_LABEL[v]  ?? v }
 
 function clearField(field: 'date' | 'stock' | 'investor') {
   if (field === 'date') searchDate.value = ''
@@ -356,7 +438,7 @@ function onPageSizeChange() {
 
 function openCreate() {
   editingPlan.value = null
-  form.value = { plan_date: '', plan_name: '', investor: '', ticker: '', stock_name: '', content: '' }
+  form.value = { plan_date: '', plan_name: '', investor: '', ticker: '', stock_name: '', content: '', urgency: 'note', status: 'draft' }
   formError.value = ''
   showForm.value = true
 }
@@ -370,6 +452,8 @@ function openEdit(plan: any) {
     ticker: plan.ticker,
     stock_name: plan.stock_name,
     content: plan.content,
+    urgency: plan.urgency ?? 'note',
+    status: plan.status ?? 'draft',
   }
   formError.value = ''
   showForm.value = true
@@ -596,6 +680,34 @@ tr:hover td { background: rgba(255,255,255,0.015); }
 .content-field label { font-size: 0.82rem; font-weight: 600; color: #00c8ff; }
 .form-error { color: #ff4d6d; font-size: 0.8rem; margin: 0.5rem 0 0; }
 
+/* Search select */
+.field-select { height: 2.4rem; padding: 0 0.75rem; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 6px; font-size: 0.8rem; color: #c9d6e8; outline: none; cursor: pointer; transition: border-color 0.2s; -webkit-appearance: none; appearance: none; }
+.field-select:focus { border-color: #00c8ff; }
+.field-select option { background: #0d1829; }
+
+/* Form select */
+.field-select-form { cursor: pointer; }
+.field-select-form option { background: #0d1829; }
+
+/* Badge columns */
+.col-badge { white-space: nowrap; }
+.badge-cell { white-space: nowrap; }
+
+/* Urgency badge */
+.urgency-badge { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.3px; border: 1px solid; }
+.urgency-immediate { background: rgba(255,77,109,0.15); border-color: rgba(255,77,109,0.5); color: #ff4d6d; }
+.urgency-waiting   { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.5); color: #f59e0b; }
+.urgency-watching  { background: rgba(0,200,255,0.12);  border-color: rgba(0,200,255,0.4);  color: #00c8ff; }
+.urgency-note      { background: rgba(74,122,173,0.12); border-color: rgba(74,122,173,0.4); color: #4a7aad; }
+
+/* Status badge */
+.status-badge { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.3px; border: 1px solid; }
+.status-draft     { background: rgba(74,122,173,0.12); border-color: rgba(74,122,173,0.4); color: #4a7aad; }
+.status-pending   { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.5); color: #f59e0b; }
+.status-active    { background: rgba(0,200,255,0.12);  border-color: rgba(0,200,255,0.4);  color: #00c8ff; }
+.status-done      { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.4); color: #4ade80; }
+.status-cancelled { background: rgba(255,77,109,0.08); border-color: rgba(255,77,109,0.25); color: #ff4d6d; opacity: 0.65; }
+
 /* View modal */
 .view-grid { display: flex; flex-direction: column; gap: 0.75rem; }
 .view-row { display: flex; gap: 1rem; align-items: flex-start; }
@@ -613,8 +725,9 @@ tr:hover td { background: rgba(255,255,255,0.015); }
   .field-group { width: 100%; min-width: 0; }
   .field-actions { width: 100%; }
   .search-btn { width: 100%; }
-  /* 隱藏次要欄位：投資人 */
+  /* 隱藏次要欄位：投資人、狀態 */
   table th:nth-child(4), table td:nth-child(4) { display: none; }
+  table th:nth-child(8), table td:nth-child(8) { display: none; }
   /* 縮小操作按鈕 */
   .view-btn, .edit-btn, .del-btn { padding: 0.22rem 0.45rem; font-size: 0.72rem; margin-right: 0.25rem; }
   /* 檢視 modal */
@@ -637,6 +750,8 @@ tr:hover td { background: rgba(255,255,255,0.015); }
   /* 表格水平捲動：隱藏即時股價與投資人 */
   table { min-width: 520px; }
   table th:nth-child(6), table td:nth-child(6) { display: none; } /* 即時股價 */
+  table th:nth-child(7), table td:nth-child(7) { display: none; } /* 緊急度 */
+  table th:nth-child(8), table td:nth-child(8) { display: none; } /* 狀態 */
   /* 縮小操作按鈕 */
   .view-btn, .edit-btn, .del-btn { padding: 0.2rem 0.38rem; font-size: 0.7rem; margin-right: 0.2rem; }
   /* 分頁簡化 */

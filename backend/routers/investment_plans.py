@@ -13,6 +13,10 @@ from models import InvestmentPlan
 router = APIRouter(prefix="/api/investment-plans", tags=["investment-plans"])
 
 
+VALID_URGENCY = {"immediate", "waiting", "watching", "note"}
+VALID_STATUS  = {"draft", "pending", "active", "done", "cancelled"}
+
+
 class PlanCreate(BaseModel):
     plan_date: date
     plan_name: str
@@ -20,6 +24,8 @@ class PlanCreate(BaseModel):
     ticker: str
     stock_name: str = ""
     content: str = ""
+    urgency: str = "note"
+    status: str = "draft"
 
 
 class PlanUpdate(BaseModel):
@@ -29,6 +35,8 @@ class PlanUpdate(BaseModel):
     ticker: Optional[str] = None
     stock_name: Optional[str] = None
     content: Optional[str] = None
+    urgency: Optional[str] = None
+    status: Optional[str] = None
 
 
 def _plan_dict(p: InvestmentPlan) -> dict:
@@ -40,6 +48,8 @@ def _plan_dict(p: InvestmentPlan) -> dict:
         "ticker": p.ticker,
         "stock_name": p.stock_name,
         "content": p.content,
+        "urgency": p.urgency,
+        "status": p.status,
         "created_at": p.created_at,
     }
 
@@ -51,6 +61,8 @@ def list_plans(
     plan_date: Optional[date] = None,
     stock: Optional[str] = None,
     investor: Optional[str] = None,
+    urgency: Optional[str] = None,
+    status: Optional[str] = None,
     session: Session = Depends(get_session),
     _: str = Depends(get_current_user),
 ):
@@ -66,6 +78,10 @@ def list_plans(
         )
     if investor:
         conditions.append(InvestmentPlan.investor.contains(investor))
+    if urgency and urgency in VALID_URGENCY:
+        conditions.append(InvestmentPlan.urgency == urgency)
+    if status and status in VALID_STATUS:
+        conditions.append(InvestmentPlan.status == status)
 
     count_q = select(func.count(InvestmentPlan.id))
     for c in conditions:
@@ -88,6 +104,10 @@ def create_plan(
     session: Session = Depends(get_session),
     _: str = Depends(get_current_user),
 ):
+    if body.urgency not in VALID_URGENCY:
+        raise HTTPException(status_code=422, detail=f"Invalid urgency: {body.urgency}")
+    if body.status not in VALID_STATUS:
+        raise HTTPException(status_code=422, detail=f"Invalid status: {body.status}")
     plan = InvestmentPlan(**body.model_dump())
     session.add(plan)
     session.commit()
@@ -105,7 +125,12 @@ def update_plan(
     plan = session.get(InvestmentPlan, plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Investment plan not found")
-    for field, val in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if "urgency" in data and data["urgency"] not in VALID_URGENCY:
+        raise HTTPException(status_code=422, detail=f"Invalid urgency: {data['urgency']}")
+    if "status" in data and data["status"] not in VALID_STATUS:
+        raise HTTPException(status_code=422, detail=f"Invalid status: {data['status']}")
+    for field, val in data.items():
         setattr(plan, field, val)
     session.commit()
     session.refresh(plan)
