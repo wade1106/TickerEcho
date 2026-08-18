@@ -31,6 +31,7 @@ def _migrate_investment_plan() -> None:
         ("urgency",          "TEXT NOT NULL DEFAULT 'note'"),
         ("status",           "TEXT NOT NULL DEFAULT 'draft'"),
         ("trigger_above",    "REAL"),
+        ("trigger_equal",    "REAL"),
         ("trigger_below",    "REAL"),
         ("linked_alert_id",  "INTEGER"),
     ]

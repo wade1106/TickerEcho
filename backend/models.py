@@ -48,6 +48,7 @@ class InvestmentPlan(SQLModel, table=True):
     status: str = Field(default="draft", nullable=False)
     # alert linkage
     trigger_above: Optional[float] = Field(default=None)
+    trigger_equal: Optional[float] = Field(default=None)
     trigger_below: Optional[float] = Field(default=None)
     linked_alert_id: Optional[int] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)

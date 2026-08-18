@@ -27,6 +27,7 @@ class PlanCreate(BaseModel):
     urgency: str = "note"
     status: str = "draft"
     trigger_above: Optional[float] = None
+    trigger_equal: Optional[float] = None
     trigger_below: Optional[float] = None
     linked_alert_id: Optional[int] = None
 
@@ -41,6 +42,7 @@ class PlanUpdate(BaseModel):
     urgency: Optional[str] = None
     status: Optional[str] = None
     trigger_above: Optional[float] = None
+    trigger_equal: Optional[float] = None
     trigger_below: Optional[float] = None
     linked_alert_id: Optional[int] = None
 
@@ -57,6 +59,7 @@ def _plan_dict(p: InvestmentPlan) -> dict:
         "urgency": p.urgency,
         "status": p.status,
         "trigger_above": p.trigger_above,
+        "trigger_equal": p.trigger_equal,
         "trigger_below": p.trigger_below,
         "linked_alert_id": p.linked_alert_id,
         "created_at": p.created_at,

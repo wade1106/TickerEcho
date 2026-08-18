@@ -238,19 +238,25 @@
                 <span class="trigger-unit">元觸發</span>
               </div>
               <div class="trigger-field">
+                <span class="trigger-label">等於</span>
+                <input type="number" v-model.number="form.trigger_equal" class="field-input trigger-input" placeholder="價格（元）" min="0" step="0.01" />
+                <span class="trigger-unit">元觸發</span>
+              </div>
+              <div class="trigger-field">
                 <span class="trigger-label">低於</span>
                 <input type="number" v-model.number="form.trigger_below" class="field-input trigger-input" placeholder="價格（元）" min="0" step="0.01" />
                 <span class="trigger-unit">元觸發</span>
               </div>
             </div>
-            <label v-if="!editingPlan && (form.trigger_above || form.trigger_below)" class="create-alert-row">
+            <label v-if="(form.trigger_above || form.trigger_equal || form.trigger_below) && !form.linked_alert_id" class="create-alert-row">
               <input type="checkbox" v-model="form.createAlert" class="alert-checkbox" />
-              <span class="create-alert-label">同時在警報系統建立對應警報</span>
+              <span class="create-alert-label">{{ editingPlan ? '同時建立連動警報' : '同時在警報系統建立對應警報' }}</span>
             </label>
-            <div v-if="editingPlan && form.linked_alert_id" class="linked-alert-info">
+            <div v-if="form.linked_alert_id" class="linked-alert-info">
               已連動警報 #{{ form.linked_alert_id }}
               <router-link to="/" class="alert-link-btn">查看警報 →</router-link>
             </div>
+            <div v-if="alertCreateError" class="alert-create-error">{{ alertCreateError }}</div>
           </div>
           <div class="form-field full-width content-field">
             <label>計畫內容 <span class="required">*</span></label>
@@ -300,10 +306,11 @@
             <span class="view-label">狀態</span>
             <span :class="['status-badge', `status-${viewTarget.status}`]">{{ statusLabel(viewTarget.status) }}</span>
           </div>
-          <div class="view-row" v-if="viewTarget.trigger_above || viewTarget.trigger_below">
+          <div class="view-row" v-if="viewTarget.trigger_above || viewTarget.trigger_equal || viewTarget.trigger_below">
             <span class="view-label">觸發條件</span>
             <span class="view-val">
               <span v-if="viewTarget.trigger_above" class="trigger-tag trigger-tag-above">高於 {{ viewTarget.trigger_above.toLocaleString() }} 元</span>
+              <span v-if="viewTarget.trigger_equal" class="trigger-tag trigger-tag-equal">等於 {{ viewTarget.trigger_equal.toLocaleString() }} 元</span>
               <span v-if="viewTarget.trigger_below" class="trigger-tag trigger-tag-below">低於 {{ viewTarget.trigger_below.toLocaleString() }} 元</span>
             </span>
           </div>
@@ -381,6 +388,7 @@ const form = ref({
   urgency: 'note',
   status: 'draft',
   trigger_above: null as number | null,
+  trigger_equal: null as number | null,
   trigger_below: null as number | null,
   linked_alert_id: null as number | null,
   createAlert: false,
@@ -388,6 +396,7 @@ const form = ref({
 
 const deleteTarget = ref<any>(null)
 const viewTarget = ref<any>(null)
+const alertCreateError = ref('')
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
@@ -492,8 +501,9 @@ function onPageSizeChange() {
 
 function openCreate() {
   editingPlan.value = null
-  form.value = { plan_date: '', plan_name: '', investor: '', ticker: '', stock_name: '', content: '', urgency: 'note', status: 'draft', trigger_above: null, trigger_below: null, linked_alert_id: null, createAlert: false }
+  form.value = { plan_date: '', plan_name: '', investor: '', ticker: '', stock_name: '', content: '', urgency: 'note', status: 'draft', trigger_above: null, trigger_equal: null, trigger_below: null, linked_alert_id: null, createAlert: false }
   formError.value = ''
+  alertCreateError.value = ''
   showForm.value = true
 }
 
@@ -509,11 +519,13 @@ function openEdit(plan: any) {
     urgency: plan.urgency ?? 'note',
     status: plan.status ?? 'draft',
     trigger_above: plan.trigger_above ?? null,
+    trigger_equal: plan.trigger_equal ?? null,
     trigger_below: plan.trigger_below ?? null,
     linked_alert_id: plan.linked_alert_id ?? null,
     createAlert: false,
   }
   formError.value = ''
+  alertCreateError.value = ''
   showForm.value = true
 }
 
@@ -524,24 +536,32 @@ async function submitForm() {
   }
   submitting.value = true
   formError.value = ''
+  alertCreateError.value = ''
   try {
     const { createAlert, ...payload } = form.value
+    let planId: number
     if (editingPlan.value) {
       await client.put(`/investment-plans/${editingPlan.value.id}`, payload)
+      planId = editingPlan.value.id
     } else {
       const planRes = await client.post('/investment-plans', payload)
-      if (createAlert && (payload.trigger_above || payload.trigger_below)) {
-        try {
-          const alertRes = await client.post('/alerts', {
-            ticker: payload.ticker,
-            name: payload.plan_name,
-            above_price: payload.trigger_above ?? undefined,
-            below_price: payload.trigger_below ?? undefined,
-          })
-          await client.put(`/investment-plans/${planRes.data.id}`, { linked_alert_id: alertRes.data.id })
-        } catch {
-          // 警報建立失敗不阻擋計畫儲存
-        }
+      planId = planRes.data.id
+    }
+    if (createAlert && (payload.trigger_above || payload.trigger_equal || payload.trigger_below)) {
+      try {
+        const alertRes = await client.post('/alerts', {
+          ticker: payload.ticker,
+          name: payload.stock_name || payload.plan_name,
+          above_price: payload.trigger_above ?? undefined,
+          equal_price: payload.trigger_equal ?? undefined,
+          below_price: payload.trigger_below ?? undefined,
+        })
+        await client.put(`/investment-plans/${planId}`, { linked_alert_id: alertRes.data.id })
+      } catch (e: any) {
+        alertCreateError.value = `計畫已儲存，但警報建立失敗：${e.response?.data?.detail || '請至警報首頁手動建立'}`
+        submitting.value = false
+        await loadPlans()
+        return
       }
     }
     showForm.value = false
@@ -729,6 +749,7 @@ tr:hover td { background: rgba(255,255,255,0.015); }
 .modal p { margin: 0 0 1.5rem; color: #4a7aad; font-size: 0.875rem; line-height: 1.6; }
 .modal strong { color: #00c8ff; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+.form-modal .modal-footer { position: sticky; bottom: 0; background: #0d1829; padding-top: 0.75rem; border-top: 1px solid #1e3a5f; margin-top: 1rem; }
 .modal-cancel { padding: 0.5rem 1.25rem; background: transparent; border: 1px solid #1e3a5f; color: #4a7aad; border-radius: 6px; cursor: pointer; font-size: 0.875rem; transition: border-color 0.2s, color 0.2s; }
 .modal-cancel:hover { border-color: #4a7aad; color: #c9d6e8; }
 .modal-confirm { padding: 0.5rem 1.25rem; background: rgba(255,77,109,0.15); border: 1px solid rgba(255,77,109,0.4); color: #ff4d6d; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 600; transition: background 0.2s, border-color 0.2s; }
@@ -794,6 +815,7 @@ tr:hover td { background: rgba(255,255,255,0.015); }
 .create-alert-label { font-size: 0.8rem; color: #c9d6e8; }
 
 .linked-alert-info { margin-top: 0.75rem; font-size: 0.8rem; color: #4a7aad; display: flex; align-items: center; gap: 0.75rem; }
+.alert-create-error { margin-top: 0.6rem; font-size: 0.78rem; color: #f59e0b; line-height: 1.5; }
 .alert-link-btn { color: #00c8ff; text-decoration: none; font-size: 0.78rem; }
 .alert-link-btn:hover { text-decoration: underline; }
 
@@ -806,6 +828,7 @@ tr:hover td { background: rgba(255,255,255,0.015); }
 /* Trigger tags in view modal */
 .trigger-tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.78rem; font-weight: 600; margin-right: 0.5rem; }
 .trigger-tag-above { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); color: #f59e0b; }
+.trigger-tag-equal { background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.4); color: #a78bfa; }
 .trigger-tag-below { background: rgba(96,165,250,0.15); border: 1px solid rgba(96,165,250,0.4); color: #60a5fa; }
 
 /* View modal */
