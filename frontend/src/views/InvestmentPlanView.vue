@@ -128,10 +128,13 @@
                     </span>
                     <span v-if="prices[plan.ticker]?.price == null" class="price-na">—</span>
                     <template v-if="prices[plan.ticker]?.price != null">
-                      <span v-if="plan.trigger_above" :class="['trigger-dist', prices[plan.ticker].price >= plan.trigger_above ? 'triggered' : 'dist-above']">
+                      <span v-if="plan.trigger_above != null && plan.trigger_above !== ''" :class="['trigger-dist', prices[plan.ticker].price >= plan.trigger_above ? 'triggered' : 'dist-above']">
                         ↑{{ triggerDist(prices[plan.ticker].price, plan.trigger_above) }}
                       </span>
-                      <span v-if="plan.trigger_below" :class="['trigger-dist', prices[plan.ticker].price <= plan.trigger_below ? 'triggered' : 'dist-below']">
+                      <span v-if="plan.trigger_equal != null && plan.trigger_equal !== ''" :class="['trigger-dist', prices[plan.ticker].price === plan.trigger_equal ? 'triggered' : 'dist-above']">
+                        ＝{{ triggerDist(prices[plan.ticker].price, plan.trigger_equal) }}
+                      </span>
+                      <span v-if="plan.trigger_below != null && plan.trigger_below !== ''" :class="['trigger-dist', prices[plan.ticker].price <= plan.trigger_below ? 'triggered' : 'dist-below']">
                         ↓{{ triggerDist(prices[plan.ticker].price, plan.trigger_below) }}
                       </span>
                     </template>
@@ -547,14 +550,15 @@ async function submitForm() {
       const planRes = await client.post('/investment-plans', payload)
       planId = planRes.data.id
     }
-    if (createAlert && (payload.trigger_above || payload.trigger_equal || payload.trigger_below)) {
+    const toPrice = (v: any) => (v !== null && v !== '' && v !== undefined && !isNaN(Number(v))) ? Number(v) : undefined
+    if (createAlert && (toPrice(payload.trigger_above) !== undefined || toPrice(payload.trigger_equal) !== undefined || toPrice(payload.trigger_below) !== undefined)) {
       try {
         const alertRes = await client.post('/alerts', {
           ticker: payload.ticker,
           name: payload.stock_name || payload.plan_name,
-          above_price: payload.trigger_above ?? undefined,
-          equal_price: payload.trigger_equal ?? undefined,
-          below_price: payload.trigger_below ?? undefined,
+          above_price: toPrice(payload.trigger_above),
+          equal_price: toPrice(payload.trigger_equal),
+          below_price: toPrice(payload.trigger_below),
         })
         await client.put(`/investment-plans/${planId}`, { linked_alert_id: alertRes.data.id })
       } catch (e: any) {
