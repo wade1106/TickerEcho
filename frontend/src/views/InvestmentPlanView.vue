@@ -542,6 +542,10 @@ async function submitForm() {
   alertCreateError.value = ''
   try {
     const { createAlert, ...payload } = form.value
+    const sanitizePrice = (v: any) => (v === '' || v === undefined) ? null : v
+    payload.trigger_above = sanitizePrice(payload.trigger_above)
+    payload.trigger_equal = sanitizePrice(payload.trigger_equal)
+    payload.trigger_below = sanitizePrice(payload.trigger_below)
     let planId: number
     if (editingPlan.value) {
       await client.put(`/investment-plans/${editingPlan.value.id}`, payload)
